@@ -96,7 +96,7 @@ if __name__ == '__main__':
     try:
         mom = Mother(cfg)
     except Exception, e:
-        print e.message
+        print e
         sys.exit(1)
         
     if options.list:
