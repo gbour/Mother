@@ -6,8 +6,7 @@ __license__ = """
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+	the Free Software Foundation; version 3 of the License
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -60,29 +59,24 @@ def query_builder(method, func):
 				code = 400
 				msg  = "missing %s parameter" % arg
 				break
-				
 
-		value = ''
+
+		value = ''; ret = None
 		if code == 200:
 			ret = func(**argmap)
-			print 'im here'
 			if isinstance(ret, tuple):
 				(code, value) = ret
 			else:
 				(code, value) = (200, ret)
-				
-		print 'and here', ret, server.NOT_DONE_YET, (ret == server.NOT_DONE_YET)
+
 		if ret == server.NOT_DONE_YET:
 			return ret
 
-		print 'and here too'
 		request.setResponseCode(code, msg)
-		print 'serving', content_type
 		if content_type == CONTENTTYPE_JSON:
 			value = cjson.encode(value)
 		else:
 			value = str(value)
-		print 'my value is', value
 		return value
 	 
 	return pre_QUERY
@@ -105,6 +99,8 @@ class FuncNode(Resource):
 		Resource.__init__(self)
 		self.isLeaf = True
 
+		self.name   = func.__callable__['name']
+		# possible methods are GET, PUT, DELETE
 		for method in func.__callable__['method']:
 			setattr(self, 'render_%s' % method, query_builder(method, func))
 

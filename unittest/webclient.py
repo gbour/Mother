@@ -20,31 +20,40 @@ __license__ = """
 """
 
 import httplib, urllib, base64
-import cjson as json
+import cjson
 
 class WebClient(object):
-	def __init__(self, address='localhost', port=80):
+	def __init__(self, address='localhost', port=80, debug=False):
 		self.headers = {
 			"Content-type": "application/json",
 			"Accept"      : "text/plain"
 		}
 		
-		self.conn = httplib.HTTPConnection(address, port)
+		self.conn  = httplib.HTTPConnection(address, port)
+		self.debug = debug
 
-
-	def request(self, method, uri, headers={}, params={}, qargs={}):
-		params = json.encode(params)
+	def request(self, method, uri, headers={}, params={}, qargs={}, json=True):
+		if json:
+			params = cjson.encode(params)
 
 		if len(qargs) > 0:
 			uri    += '?' + urllib.urlencode(qargs)
 
 		_headers = self.headers.copy()
 		_headers.update(headers)
-		print 'querying= %s %s' % (method, uri), params, _headers
+		if self.debug:
+			print 'querying= %s %s' % (method, uri), _headers, params if json else ''
+		
 		self.conn.request(method, uri, params, _headers)
 		response = self.conn.getresponse()
 		data	 = response.read()
-		print response.status, data
 		
+		if self.debug:
+			print response.status,
+			if response.getheader('content-type', '') == 'application/json':
+				print data
+			else:
+				print ''
+
 		return (response, data)
 

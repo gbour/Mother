@@ -19,7 +19,7 @@ __license__ = """
 	with this program; if not, write to the Free Software Foundation, Inc.,
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
-import sys, unittest, cjson
+import sys, unittest, cjson, hashlib, magic
 from webclient import *
 
 
@@ -32,16 +32,17 @@ class Test12Link(unittest.TestCase):
 		self.w      = WebClient(address='localhost', port=9998)
 		self.linkid = 100
 
-	def test_01_defaultvalue(self):
-		# getting default link
-		(resp, data) = self.w.request('GET', '/strawberry/link', qargs={'id': 1})
-		self.assertEqual(resp.status, 200)
-		
+#	def test_01_defaultvalue(self):
+#		# getting default link
+#		(resp, data) = self.w.request('GET', '/strawberry/link', qargs={'id': 1})
+#		self.assertEqual(resp.status, 200)
+#		
 	def test_02_create(self):
 		(resp, data) = self.w.request('PUT', '/strawberry/link', params={
 			'id'  : self.linkid,
 			'link': 'http://linuxfr.org',
 			'name': 'Da Linux French Page',
+			'tags': ['bookmarks service', 'linux', 'journals'],
 		})
 		
 		self.assertEqual(resp.status, 200)
@@ -50,6 +51,116 @@ class Test12Link(unittest.TestCase):
 			data = int(data)
 		except ValueError:
 			self.fail('newly created link id must be int (is %s)' % data)
+
+	def test_03_createtwice(self):
+		# duplicate ID
+		(resp, data) = self.w.request('PUT', '/strawberry/link', params={
+			'id'  : self.linkid,
+			'link': 'http://linuxfr.org',
+			'name': 'Da Linux French Page',
+		})
+		
+		self.assertEqual(resp.status, 400)
+
+		# duplicate NAME
+		(resp, data) = self.w.request('PUT', '/strawberry/link', params={
+			'link': 'http://linuxfr.org',
+			'name': 'Da Linux French Page',
+		})
+		
+		self.assertEqual(resp.status, 400)
+
+		# unknown field (foo)
+		(resp, data) = self.w.request('PUT', '/strawberry/link', params={
+			'link': 'http://linuxfr.org/1234',
+			'name': 'Da Linux French Page',
+			'foo' : 'baz'
+		})
+		
+		self.assertEqual(resp.status, 409)
+
+	def test_03_seticon(self):
+		with open('./strawberry/py.png', 'rb') as fd:
+			icon = fd.read()
+			
+		m = magic.open(magic.MAGIC_MIME)
+		m.load()
+		mime = m.buffer(icon).split(';')[0]
+		m.close()
+
+		(resp, data) = self.w.request('PUT', '/strawberry/link/icon', params=icon, \
+			qargs={'id': self.linkid}, json=False, headers={'Content-type': mime})
+			
+		self.assertEqual(resp.status, 200)
+
+	def test_04_geticon(self):
+		with open('./strawberry/py.png', 'rb') as fd:
+			icon = fd.read()
+		src_hash = hashlib.md5(icon).digest()
+		
+		(resp, data) = self.w.request('GET', '/strawberry/link/icon', qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+		self.assertEqual(resp.getheader('content-type', ''), 'image/png')
+
+		dst_hash = hashlib.md5(data).digest()
+		self.assertEqual(dst_hash, src_hash)
+
+	def test_05_delicon(self):
+		(resp, data) = self.w.request('DELETE', '/strawberry/link/icon', qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+
+	def test_05_icon_errorcases(self):
+		# delete always true (set to None)
+		(resp, data) = self.w.request('DELETE', '/strawberry/link/icon', qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+
+		# found, but no data (icon is empty)
+		(resp, data) = self.w.request('GET', '/strawberry/link/icon', qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 204)
+
+	def test_06_setscreenshot(self):
+		with open('./strawberry/py.png', 'rb') as fd:
+			icon = fd.read()
+			
+		m = magic.open(magic.MAGIC_MIME)
+		m.load()
+		mime = m.buffer(icon).split(';')[0]
+		m.close()
+
+		(resp, data) = self.w.request('PUT', '/strawberry/link/screenshot', params=icon, \
+			qargs={'id': self.linkid}, json=False, headers={'Content-type': mime})
+			
+		self.assertEqual(resp.status, 200)
+
+	def test_07_getscreenshot(self):
+		with open('./strawberry/py.png', 'rb') as fd:
+			icon = fd.read()
+		src_hash = hashlib.md5(icon).digest()
+		
+		(resp, data) = self.w.request('GET', '/strawberry/link/screenshot', \
+			qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+		self.assertEqual(resp.getheader('content-type', ''), 'image/png')
+
+		dst_hash = hashlib.md5(data).digest()
+		self.assertEqual(dst_hash, src_hash)
+
+	def test_08_delscreenshot(self):
+		(resp, data) = self.w.request('DELETE', '/strawberry/link/screenshot', \
+			qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+
+	def test_09_screenshot_errorcases(self):
+		# delete always true (set to None)
+		(resp, data) = self.w.request('DELETE', '/strawberry/link/screenshot', \
+			qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 200)
+
+		# found, but no data (icon is empty)
+		(resp, data) = self.w.request('GET', '/strawberry/link/screenshot', \
+			qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 204)
+
 
 	def test_10_getone(self):
 		(resp, data) = self.w.request('GET', '/strawberry/link', qargs={'id': self.linkid})
@@ -62,13 +173,20 @@ class Test12Link(unittest.TestCase):
 		self.assertTrue('link' in data)
 		self.assertEqual(data['link'], 'http://linuxfr.org')
 
+	def test_11_getall(self):
+		(resp, data) = self.w.request('GET', '/strawberry/link/all')
+		self.assertEqual(resp.status, 200)
+		data = cjson.decode(data)
+		self.assertTrue(isinstance(data, list))
+		self.assertEqual(len(data), 2)
+
 	def test_20_delete(self):
 		(resp, data) = self.w.request('DELETE', '/strawberry/link', qargs={'id': self.linkid})
 		self.assertEqual(resp.status, 200)
 
 		# delete non existing link => error 404
-#		(resp, data) = self.w.request('DELETE', '/strawberry/link', qargs={'id': self.linkid})
-#		self.assertEqual(resp.status, 404)
+		(resp, data) = self.w.request('DELETE', '/strawberry/link', qargs={'id': self.linkid})
+		self.assertEqual(resp.status, 404)
 
 
 if __name__ == '__main__':

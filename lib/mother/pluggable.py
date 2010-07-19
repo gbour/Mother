@@ -94,7 +94,8 @@ class Pluggable(object):
 		# whereas when we enumarate instance members, we get bounded (ie callable) methods
 		for (name, obj) in inspect.getmembers(inst):
 			if inspect.ismethod(obj) and '__callable__' in dir(obj):
-				netnode.putChild(name, FuncNode(obj))
+				fncnode = FuncNode(obj)
+				netnode.putChild(fncnode.name, fncnode)
 
 
 	def list(self):
