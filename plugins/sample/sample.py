@@ -19,22 +19,48 @@ __license__ = """
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
 
-from libdoe.callable import callback
+from mother.callable import Callable, callback
  
-class Sample(object):
-    def __init__(self, *args, **kwargs):
-        pass
+class Sample(Callable):
+	"""
+		Sample class base url is '/sample/sample' (pluginname + classname)
+	"""
+	def __init__(self, context):
+		self.context = context
         
 	@callback
-	def sample(self, *args, **kwargs):
-		return 'sample callback return'
+	def subsample(self):
+		"""
+			url = '/sample/sample/subsample'
+		"""
+		return 'sample::subsample'
+
+	@callback(url='/bar')
+	def foo(self):
+		"""
+			url = '/sample/sample/bar'
+		"""
+		return 'sample::foo'
 
 	@callback
-	def sample2(self, *args, **kwargs):
-		return 'this is 2d sample'
+	def foo2(self):
+		"""
+			url = '/sample/bar2' (defined in module URLs dict)
+		"""
+		return 'sample::foo2'
 
+	@callback(url='/bar2/{arg1}')
+	def foo3(self, arg1):
+		return 'sample::foo3=', arg1
 
 
 @callback
-def sample3(self, *args, **kwargs):
-    return ('this is 3d sample')
+def sample3():
+	"""
+		url = '/sample/sample3'
+	"""
+	return 'this is 3d sample'
+
+@callback(url=r'/smaple4/(?P<arg1>[^/]+)')
+def sample4(arg1):
+	return 'sample4=', arg1
