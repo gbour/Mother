@@ -19,8 +19,8 @@ __license__ = """
 """
 import traceback, cjson, inspect
 
-from twisted.web.resource   import Resource
-from twisted.web			import server
+from twisted.web.resource   import Resource, NoResource
+from twisted.web            import server
 
 from mother.callable import Callable
 
@@ -87,6 +87,9 @@ class ClassNode(Resource):
 		Resource.__init__(self)
 		self.isLeaf   = leaf
 
+		self.instance   = inst
+		self.isCallable = isinstance(inst, Callable)
+
 		if not isinstance(inst, Callable):
 			return
 
@@ -99,8 +102,45 @@ class FuncNode(Resource):
 		Resource.__init__(self)
 		self.isLeaf = True
 
-		self.name   = func.__callable__['name']
+		self.func  = func
+		self.url   = func.__callable__.get('url', func.__callable__['_url'])
+
 		# possible methods are GET, PUT, DELETE
+		print 'FuncNode>>', func, func.__callable__
 		for method in func.__callable__['method']:
 			setattr(self, 'render_%s' % method, query_builder(method, func))
 
+	def __repr__(self):
+		return 'FuncNode(%s)' % self.func.__name__
+
+class PluginNode(Resource):
+	def __init__(self, plugin):
+		Resource.__init__(self)
+
+		self.plugin = plugin
+
+	#def set_callback(self, func):
+	#	for method in func.__callable__['method']:
+	#		setattr(self, 'render_%s' % method, query_builder(method, func))
+
+	def render(self, request):
+		#print 'PluginNode::render', request.uri
+		m = self.plugin.flat_urls.get('/', None)
+		if m is None:
+			return Resource.render(self, request)
+
+		return m.render(request)
+
+	def getChild(self, path, request):
+		#print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
+
+		uri = "/%s/%s" % (path, '/'.join(request.postpath))
+		if uri in self.plugin.flat_urls:
+			return self.plugin.flat_urls[uri]
+
+		for raw, (rx, target) in self.plugin.regex_urls.iteritems():
+			if rx.match(uri):
+				return target
+
+		# no resource found
+		return NoResource('Not Found')

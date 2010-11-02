@@ -35,12 +35,18 @@ import sys, inspect, types
 
 #	return fnc
 
-def callback(method='GET', *args, **kwargs):
+def callback(method='GET', autobind=True, *args, **kwargs):
 	def deco(fnc):
-		fnc.__dict__['__callable__'] = {
-			'name': kwargs['name'] if 'name' in kwargs else fnc.__name__, 
-			'method': method
-		}
+		# base url. May be overridden if 'name' is set
+		kwargs['_url']     = '/' + fnc.__name__
+		kwargs['method']   = method
+		kwargs['autobind'] = autobind #???
+
+		fnc.__dict__['__callable__'] = kwargs
+		#fnc.__dict__['__callable__'] = {
+		#	'name': kwargs.get('name', fnc.__name__), 
+		#	'method': method
+		#}
 		return fnc
 
 	# special case where invoking callback as keyword, not function 

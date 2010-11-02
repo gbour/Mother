@@ -19,19 +19,47 @@ __license__ = """
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
-import sys, os, os.path, sqlite3, inspect, traceback
-from twisted.web.resource   import Resource
+import sys, os, os.path, re, sqlite3, inspect, traceback
+from odict                import odict
 
-from tentacles			  import Object
-from tentacles.fields	   import *
-from mother.network		 import *
+from twisted.web.resource import Resource
+from twisted.web          import static
+from twisted.web.rewrite  import RewriterResource
+
+from tentacles            import *
+from tentacles.fields	    import *
+from tentacles.queryset   import filter
+from mother.network       import *
+
 
 class Plugin(Object):
 	__stor_name__ = 'pluggable__plugins'
 
-	uuid	= String(pk=True)
-	name	= String()
-	active  = Boolean(default=True)
+	## database fields
+	uuid	        = String(pk=True)
+	name	        = String()
+	#path          = String()
+	active        = Boolean(default=True)
+
+	## urls is made of:
+	#  . flat urls (exactly match)
+	#  . regular expressions
+	flat_urls		= {}
+	regex_urls  = odict()
+
+	def addurl(self, url, resource):
+		# compile regex url
+		def argmatch(m):
+			return '(?P<%s>[^/]*)' % m.group(1)
+		_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)\}', argmatch, url)
+
+		storin = self.flat_urls
+		if re.search(r'[([{.*+^$]', _url) != None:
+			# url is a regex
+			storin   = self.regex_urls
+			resource = (re.compile(url), resource)
+
+		storin[url] = resource
 
 class Pluggable(object):
 	def __init__(self, plugin_dir, db):
@@ -43,22 +71,70 @@ class Pluggable(object):
 		self.db	 = db
 		self.db.create()
 
+		self.instances = {}
+
 	def initialize(self, root):
 		plugins = filter(lambda x: x.active is True, Plugin)
+		print plugins
+
 		for plugin in plugins:
 			# try import
 			try:
 				exec "import %s" % plugin.name in {}, {}
-			except ImportError:
-				continue
+			except ImportError, e:
+				print "/!\ Cannot import %s plugin:" % plugin.name, e
+			print "? plugin %s imported" % plugin.name
 			mod = sys.modules[plugin.name]
 
-			netnode = Resource()
-			root.putChild(plugin.name, netnode)
+			plugin.root = PluginNode(plugin)
+			root.putChild(plugin.name, plugin.root)
 
 			# check UUID matching
 			if mod.UUID != plugin.uuid:
+				print "/!\ plugin UUID does not match database one (%s vs %s)" % \
+					(plugin.uuid, mod.UUID)
 				continue
+
+			# load URL callbacks
+			print "loop on URLS"
+			raw_urls = mod.__dict__.get('URLS', {})
+			for url, target in raw_urls.iteritems():
+				"""Looping on URLs
+
+				we must determine if url is:
+				. a raw string		(i.e: /foo/bar)
+				. a simple regex  (i.e: /foo/{bar})
+				. a full regex		(i.e: /foo/(?<bar>[^/]+))
+				"""
+				if isinstance(target, static.File):
+					plugin.addurl(url, target); continue
+			
+
+				# resolve unbound methods
+				if hasattr(target, 'im_self') and target.im_self is None:
+					#callback = getattr(self.instances[callback.im_class], callback.__name__)
+					#callback = getattr(self.__classinstance(callback.im_class), callback.__name__)
+					target = self.__boundmethod(target)
+
+				if not hasattr(target, '__callable__'):
+					raise Exception('%s is not callable' % inst.__name__)
+				elif 'url' in target.__callable__:
+					raise Exception("%s url cannot be redefined (is %s, try to set %s)" %\
+						(target.__name__, target.__callable__['url'], url))
+				#print 'callback=', target
+
+				plugin.addurl(url, FuncNode(target))
+				"""
+				if isinstance(callback, static.File):
+					plugin.root.resource.putChild(url, callback)
+				elif url == '/':
+					# special «root» url
+					plugin.root.resource.set_callback(callback)
+				else:
+					plugin.root.resource.putChild(url, FuncNode(callback))
+
+				plugin.urls[url] = callback
+				"""
 
 			# load plugin callbacks
 			"""
@@ -72,30 +148,61 @@ class Pluggable(object):
 			"""
 			for (name, obj) in inspect.getmembers(mod):
 				if inspect.isfunction(obj) and '__callable__' in dir(obj):
-					netnode.putChild(name, FuncNode(obj))
+					#netnode.putChild(name, FuncNode(obj))
+					node = FuncNode(obj)
+					plugin.addurl(node.url, node)
 			
 				elif inspect.isclass(obj) and issubclass(obj, Callable) and obj is not Callable:
-					self.__initialize_class(mod, obj, None, netnode)
+					self.__classinit(obj, plugin)
 					
 				#TODO case submodule: load subclasses
 				# (I've already done this elsewere ?)
 
-	def __initialize_class(self, module, klass, callbacks, netnode):
+		#print "MY URLS="
+		#import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
+				
+
+	def __classinit(self, klass, plugin):
 		# why do we need to reimport module ?
-		exec 'import %s' % module.__name__
-		inst = eval("%s.%s(self.db)" % (module.__name__, klass.__name__))
+		inst = self.__classinstance(klass)
 		
+		basename = ''
 		if isinstance(inst, Callable):
 			klassnode = ClassNode(inst)
-			netnode.putChild(inst.__class__.__name__.lower(), klassnode)
-			netnode = klassnode
+			#netnode.putChild(inst.__class__.__name__.lower(), klassnode)
+			#netnode = klassnode
+			klassurl = '/' + klass.__name__.lower()
+			plugin.addurl(klassurl, klassnode)
 		
 		# if we enumerate class members, we get unbound methods
 		# whereas when we enumarate instance members, we get bounded (ie callable) methods
 		for (name, obj) in inspect.getmembers(inst):
-			if inspect.ismethod(obj) and '__callable__' in dir(obj):
-				fncnode = FuncNode(obj)
-				netnode.putChild(fncnode.name, fncnode)
+			if not inspect.ismethod(obj) or not hasattr(obj, '__callable__'):
+			#and obj.__callable__.get('autobind', False):
+				continue
+
+			fncnode = FuncNode(obj)
+			#netnode.putChild(fncnode.name, fncnode)
+			plugin.addurl(klassurl + obj.__callable__.get('url', obj.__callable__['_url']), fncnode)
+
+	def __classinstance(self, klass):
+		if klass not in self.instances:
+			#print klass.__name__, "new instance"; issubclass(klass, Callable)
+			exec 'import %s' % klass.__module__ #NOTE: __module__ is module name (str)
+			inst = eval("%s.%s(%s)" % (klass.__module__, klass.__name__, 
+				'self.db'	if issubclass(klass, Callable) else ''))
+			self.instances[klass] = inst
+
+		return self.instances[klass]
+
+	def __boundmethod(self, meth):
+		klassinst = self.__classinstance(meth.im_class)
+		inst = getattr(klassinst, meth.__name__)
+
+		if not inspect.ismethod(inst):
+			raise Exception('%s.%s is not a method', klassinst.__name__, inst.__name__)
+
+		return inst
 
 
 	def list(self):
@@ -112,4 +219,3 @@ class Pluggable(object):
 			plugs.append(plugin.name)
 			
 		return plugs
-
