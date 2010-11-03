@@ -38,7 +38,7 @@ import sys, inspect, types
 def callback(method='GET', autobind=True, *args, **kwargs):
 	def deco(fnc):
 		# base url. May be overridden if 'name' is set
-		kwargs['_url']     = '/' + fnc.__name__
+		kwargs['_url']     = '/' + fnc.__name__ # not necessary. TO REMOVE
 		kwargs['method']   = method
 		kwargs['autobind'] = autobind #???
 
@@ -62,7 +62,16 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 
 	return deco
 
+class CallableBuilder(type):
+	def __new__(cls, name, bases, dct):
+		if not 'url' in dct:
+			dct['url'] = '/' + name.lower()
+		elif dct['url'] is not None and not dct['url'].startswith('/'):
+			raise Exception("url must start with '/'")
+
+		return type.__new__(cls, name, bases, dct)
 
 class Callable(object):
-	pass
+	__metaclass__ = CallableBuilder
+	
 

@@ -27,7 +27,14 @@ class Sample(Callable):
 	"""
 	def __init__(self, context):
 		self.context = context
-        
+
+	def GET(self):
+		"""
+
+		url = '/sample/sample"
+		"""
+		return "Sample::GET"
+
 	@callback
 	def subsample(self):
 		"""
@@ -51,7 +58,7 @@ class Sample(Callable):
 
 	@callback(url='/bar2/{arg1}')
 	def foo3(self, arg1):
-		return 'sample::foo3=', arg1
+		return 'sample::foo3=%s' % arg1
 
 
 @callback

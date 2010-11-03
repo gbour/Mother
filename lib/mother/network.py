@@ -34,6 +34,7 @@ def query_builder(method, func):
 		del ARGS[0]
 		
 	def pre_QUERY(request):
+		print 'pre_QUERY', func.__name__, func.__callable__
 		code	= 200
 		msg	 = None
 		argmap  = {}
@@ -47,7 +48,8 @@ def query_builder(method, func):
 			
 		# url params precedes on content json data
 		for arg in request.args.iterkeys():
-			argmap[arg] = request.args[arg][0]
+			#CHECK: arg is a list only when has multiple values
+			argmap[arg] = request.args[arg] #[0]
 
 		if 'method' in ARGS:
 			argmap['method'] = method
@@ -106,7 +108,6 @@ class FuncNode(Resource):
 		self.url   = func.__callable__.get('url', func.__callable__['_url'])
 
 		# possible methods are GET, PUT, DELETE
-		print 'FuncNode>>', func, func.__callable__
 		for method in func.__callable__['method']:
 			setattr(self, 'render_%s' % method, query_builder(method, func))
 
@@ -132,14 +133,21 @@ class PluginNode(Resource):
 		return m.render(request)
 
 	def getChild(self, path, request):
-		#print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
+		print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
 
-		uri = "/%s/%s" % (path, '/'.join(request.postpath))
+		uri = '/' + path
+		if len(request.postpath) > 0:
+			uri += '/' + '/'.join(request.postpath)
+		
 		if uri in self.plugin.flat_urls:
+			print 'found in flaturi'
 			return self.plugin.flat_urls[uri]
 
 		for raw, (rx, target) in self.plugin.regex_urls.iteritems():
-			if rx.match(uri):
+			m = rx.match(uri)
+			if m is not None:
+				# named groups a set as request args
+				request.args.update(m.groupdict())
 				return target
 
 		# no resource found

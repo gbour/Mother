@@ -41,11 +41,14 @@ class Plugin(Object):
 	#path          = String()
 	active        = Boolean(default=True)
 
-	## urls is made of:
-	#  . flat urls (exactly match)
-	#  . regular expressions
-	flat_urls		= {}
-	regex_urls  = odict()
+	def __init__(self, *args, **kwargs):
+		super(Plugin, self).__init__(*args, **kwargs)
+	
+		## urls is made of:
+		#  . flat urls (exactly match)
+		#  . regular expressions
+		self.flat_urls		= {}
+		self.regex_urls  = odict()
 
 	def addurl(self, url, resource):
 		# compile regex url
@@ -57,12 +60,12 @@ class Plugin(Object):
 		if re.search(r'[([{.*+^$]', _url) != None:
 			# url is a regex
 			storin   = self.regex_urls
-			resource = (re.compile(url), resource)
+			resource = (re.compile(_url), resource)
 
 		storin[url] = resource
 
 class Pluggable(object):
-	def __init__(self, plugin_dir, db):
+	def __init__(self, plugin_dir, db, context):
 		if not os.path.isdir(plugin_dir):
 			raise Exception("plugin directory %s not found" % plugin_dir)
 		sys.path.append(plugin_dir)
@@ -71,7 +74,10 @@ class Pluggable(object):
 		self.db	 = db
 		self.db.create()
 
+		self.context   = context
+
 		self.instances = {}
+		self.plugins   = {}
 
 	def initialize(self, root):
 		plugins = filter(lambda x: x.active is True, Plugin)
@@ -88,6 +94,7 @@ class Pluggable(object):
 
 			plugin.root = PluginNode(plugin)
 			root.putChild(plugin.name, plugin.root)
+			self.plugins[plugin.name] = plugin
 
 			# check UUID matching
 			if mod.UUID != plugin.uuid:
@@ -158,21 +165,23 @@ class Pluggable(object):
 				#TODO case submodule: load subclasses
 				# (I've already done this elsewere ?)
 
-		#print "MY URLS="
-		#import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
+			#print "MY URLS="
+			import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
 				
 
 	def __classinit(self, klass, plugin):
 		# why do we need to reimport module ?
 		inst = self.__classinstance(klass)
+		# needed for URLS callbacks
+		self.instances[klass] = inst
 		
 		basename = ''
 		if isinstance(inst, Callable):
 			klassnode = ClassNode(inst)
 			#netnode.putChild(inst.__class__.__name__.lower(), klassnode)
 			#netnode = klassnode
-			klassurl = '/' + klass.__name__.lower()
-			plugin.addurl(klassurl, klassnode)
+			if klass.url is not None:
+				plugin.addurl(klass.url, klassnode)
 		
 		# if we enumerate class members, we get unbound methods
 		# whereas when we enumarate instance members, we get bounded (ie callable) methods
@@ -183,14 +192,18 @@ class Pluggable(object):
 
 			fncnode = FuncNode(obj)
 			#netnode.putChild(fncnode.name, fncnode)
-			plugin.addurl(klassurl + obj.__callable__.get('url', obj.__callable__['_url']), fncnode)
+			url = obj.__callable__.get('url', obj.__name__)
+			if klass.url is not None:
+				#TODO: if url is a rx, it is more complex
+				url = klass.url + url
+			plugin.addurl(url, fncnode)
 
 	def __classinstance(self, klass):
 		if klass not in self.instances:
 			#print klass.__name__, "new instance"; issubclass(klass, Callable)
 			exec 'import %s' % klass.__module__ #NOTE: __module__ is module name (str)
 			inst = eval("%s.%s(%s)" % (klass.__module__, klass.__name__, 
-				'self.db'	if issubclass(klass, Callable) else ''))
+				'self.context'	if issubclass(klass, Callable) else ''))
 			self.instances[klass] = inst
 
 		return self.instances[klass]
@@ -206,16 +219,4 @@ class Pluggable(object):
 
 
 	def list(self):
-		plugs = []
-		
-		plugins = filter(lambda x: x.active is True, Plugin)
-		for plugin in plugins:
-			try:
-				exec "import %s" % plugin.name in {}, {}
-			except ImportError:
-				traceback.print_exc()
-				continue
-
-			plugs.append(plugin.name)
-			
-		return plugs
+		return list(map(lambda p: {'name': p.name, 'uuid': p.uuid, 'active': p.active}, Plugin))

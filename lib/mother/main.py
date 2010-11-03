@@ -56,7 +56,7 @@ class Mother(object):
 		self.db = Storage(config.database)
 
 		#. bootstrap pluggable plugin
-		self.plug = Pluggable(config.plugdir, self.db)
+		self.plug = Pluggable(config.plugdir, self.db, Context(self))
 		
 	def run(self):
 		root = Resource()
@@ -70,3 +70,10 @@ class Mother(object):
 	def list_plugins(self):
 		return self.plug.list()
 
+class Context(object):
+	def __init__(self, mother):
+		self.mother = mother		
+		self.db     = mother.db
+
+	def plugins(self):
+		return self.mother.list_plugins()
