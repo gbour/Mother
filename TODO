@@ -1,0 +1,62 @@
+
+URLs management
+ . static url: if target is a directory, and url is a raw string, must match whole
+   directory and sub-content (transform it to a rx in a 1st time)
+
+ . use a trie to optimize path search (extract static content from regexs)
+
+ . allow some keywords in simple regex (inspired from string.format)
+		 size: {arg1:22}
+     type: {arg1:d}           (d: integer, s:string)
+
+REPORTING:
+ . log url access "à la" apache
+
+PLUGINS
+ . allow several plugins directory on disk (/var/lib/mother, /home/xoxo/.mother, ...)
+ . monitor plugin directories, to notify mother each time a plugin is added/removed/changed
+
+NOTIFICATIONS
+ . add a notification mechanism:
+   - a plugin can create new events (register those new event to mother at load)
+   - a plugin register to events (i.e event=plugin_new, plugin_*, with a callback)
+   - plugin clients can register events (event + (url / comet channel) + timeout)
+
+ . an event:
+   - name
+   - emitter
+   - data
+
+   use twisted eventloop mechanism ?
+
+AUTHENTICATION
+ . special plugin (database tables)
+ . define hooks to intercept queries
+
+AUTORELOAD
+ . watch for source files changes
+ . reload plugin/module/whole application on changes ?
+
+CONTEXT
+ . should have several "level-"contexts, i.e AnonymousContext, AuthContext, AdminContext
+   each one with different capabilities:
+   - anonymous can't do nor query nothing to/from mother core
+   - admin as full access to mother core (can list/(un)load plugins, access other plugins content, ...)
+   - auth have access to user, rights, accesses, ...
+
+ . by default, a plugin receive an AnonymousContext.
+ . a signed plugin (+md5 checked files) known by mother may gain higher access rights (e.g higher context)
+
+DOC
+ . comments whole code
+ . reference documentation
+ . samples codes
+ . tutorial
+
+RULES:
+ . we can access an object(instance/method/function) by one URI only:
+   "foo" and "foo/" are different uris
+	 Sample(Callable) can only have ONE url
+
+ . @callbacl(url=) superseed global URLS dict url, which superseed default @callback
+   url (e.g function name)
