@@ -19,7 +19,7 @@ __license__ = """
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
-import sys, os, os.path, re, sqlite3, inspect, traceback
+import sys, os, os.path, re, sqlite3, inspect, traceback, types
 from odict                import odict
 
 from twisted.web.resource import Resource
@@ -30,6 +30,8 @@ from tentacles            import *
 from tentacles.fields	    import *
 from tentacles.queryset   import filter
 from mother.network       import *
+from mother.context       import AppContext
+from mother               import template
 
 
 class Plugin(Object):
@@ -48,21 +50,46 @@ class Plugin(Object):
 		#  . flat urls (exactly match)
 		#  . regular expressions
 		self.flat_urls		= {}
-		self.regex_urls  = odict()
+		self.regex_urls   = odict()
 
 	def addurl(self, url, resource):
-		# compile regex url
-		def argmatch(m):
-			return '(?P<%s>[^/]*)' % m.group(1)
-		_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)\}', argmatch, url)
+		"""Append a new URL resource
 
-		storin = self.flat_urls
-		if re.search(r'[([{.*+^$]', _url) != None:
-			# url is a regex
-			storin   = self.regex_urls
-			resource = (re.compile(_url), resource)
+			@url: relative to application root. May be:
+				- raw url (/my/url)
+				- simple regex (/my/{url})
+				- true regex   (r'/my/(?<url>[^/]+))
+				- HTTPCode class
+		"""
+		store = self.flat_urls
 
-		storin[url] = resource
+		if isinstance(url, types.StringTypes):
+			if isinstance(resource, template.Static):
+				#TODO: if resource is file, not directory, we must not change url to match all
+				#sub paths/files
+				if url.endswith('$'):
+					url = url[:-1]
+				url += '.*$'
+
+			# compile regex url
+			def argmatch(m):
+				return '(?P<%s>[^/]*)' % m.group(1)
+			_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)\}', argmatch, url)
+
+			if re.search(r'[([{.*+^$]', _url) != None:
+				# url is a regex
+				_url     = "^%s$" % _url     # force bounds
+				store    = self.regex_urls
+				resource = (re.compile(_url), resource)
+
+		store[url] = resource
+	
+	def objects(self):
+		objs = [o for (n, o) in inspect.getmembers(sys.modules[self.name]) if
+				inspect.isclass(o) and issubclass(o, Object) and o != Object]
+		#print "OBJS=", objs
+		return objs
+
 
 class Pluggable(object):
 	def __init__(self, plugin_dir, db, context):
@@ -92,6 +119,9 @@ class Pluggable(object):
 			print "? plugin %s imported" % plugin.name
 			mod = sys.modules[plugin.name]
 
+			mod.CONTEXT = AppContext(mod)
+			mod.PLUGIN  = plugin
+
 			plugin.root = PluginNode(plugin)
 			root.putChild(plugin.name, plugin.root)
 			self.plugins[plugin.name] = plugin
@@ -103,7 +133,7 @@ class Pluggable(object):
 				continue
 
 			# load URL callbacks
-			print "loop on URLS"
+			#print "loop on URLS"
 			raw_urls = mod.__dict__.get('URLS', {})
 			for url, target in raw_urls.iteritems():
 				"""Looping on URLs
@@ -113,7 +143,7 @@ class Pluggable(object):
 				. a simple regex  (i.e: /foo/{bar})
 				. a full regex		(i.e: /foo/(?<bar>[^/]+))
 				"""
-				if isinstance(target, static.File):
+				if isinstance(target, (static.File, template.Template)):
 					plugin.addurl(url, target); continue
 			
 
@@ -121,15 +151,18 @@ class Pluggable(object):
 				if hasattr(target, 'im_self') and target.im_self is None:
 					#callback = getattr(self.instances[callback.im_class], callback.__name__)
 					#callback = getattr(self.__classinstance(callback.im_class), callback.__name__)
-					target = self.__boundmethod(target)
+					target = self.boundmethod(target)
 
 				if not hasattr(target, '__callable__'):
 					raise Exception('%s is not callable' % inst.__name__)
 				elif 'url' in target.__callable__:
 					raise Exception("%s url cannot be redefined (is %s, try to set %s)" %\
 						(target.__name__, target.__callable__['url'], url))
-				#print 'callback=', target
 
+				#print 'callback=', target
+				print 'tt=', target, target.__callable__, url
+				target.__callable__['url'] = url
+				print 'tt=', target, target.__callable__
 				plugin.addurl(url, FuncNode(target))
 				"""
 				if isinstance(callback, static.File):
@@ -156,6 +189,10 @@ class Pluggable(object):
 			for (name, obj) in inspect.getmembers(mod):
 				if inspect.isfunction(obj) and '__callable__' in dir(obj):
 					#netnode.putChild(name, FuncNode(obj))
+					# get original url if not set explicitly
+					if 'url' not in obj.__callable__:
+						obj.__callable__['url'] = obj.__callable__['_url']
+
 					node = FuncNode(obj)
 					plugin.addurl(node.url, node)
 			
@@ -166,12 +203,14 @@ class Pluggable(object):
 				# (I've already done this elsewere ?)
 
 			#print "MY URLS="
-			import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
-				
+			#import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
+			
+		# create all plugins storage backend
+		self.db.create()
 
 	def __classinit(self, klass, plugin):
 		# why do we need to reimport module ?
-		inst = self.__classinstance(klass)
+		inst = self.classinstance(klass)
 		# needed for URLS callbacks
 		self.instances[klass] = inst
 		
@@ -181,6 +220,7 @@ class Pluggable(object):
 			#netnode.putChild(inst.__class__.__name__.lower(), klassnode)
 			#netnode = klassnode
 			if klass.url is not None:
+				print "EEE", klass.url, klassnode, inst
 				plugin.addurl(klass.url, klassnode)
 		
 		# if we enumerate class members, we get unbound methods
@@ -192,24 +232,42 @@ class Pluggable(object):
 
 			fncnode = FuncNode(obj)
 			#netnode.putChild(fncnode.name, fncnode)
-			url = obj.__callable__.get('url', obj.__name__)
+			#url = obj.__callable__.get('url', obj.__name__)
+			if 'url' not in obj.__callable__:
+				obj.__callable__['url'] = obj.__callable__['_url']
+			url = obj.__callable__['url']
+
+			print 'UU', url, klass.url
 			if klass.url is not None:
 				#TODO: if url is a rx, it is more complex
 				url = klass.url + url
 			plugin.addurl(url, fncnode)
 
-	def __classinstance(self, klass):
+	def classinstance(self, klass):
 		if klass not in self.instances:
 			#print klass.__name__, "new instance"; issubclass(klass, Callable)
 			exec 'import %s' % klass.__module__ #NOTE: __module__ is module name (str)
+
+			# NOTE: As we can't do it in CallableBuilde, I put it here; but I'm not satisfied of
+			# this
+			#
+			# NOTE: a None url means we don't prepend klass url to methods ones
+			if not hasattr(klass, 'url'):
+				klass.url = '/' + klass.__name__.lower()
+			elif klass.url is not None and not klass.url.startswith('/'):
+				raise Exception("Invalid %s as %s class url: MUST start with '/'" % (klass.url,
+					klass.__name__))
+			##
+
 			inst = eval("%s.%s(%s)" % (klass.__module__, klass.__name__, 
 				'self.context'	if issubclass(klass, Callable) else ''))
+
 			self.instances[klass] = inst
 
 		return self.instances[klass]
 
-	def __boundmethod(self, meth):
-		klassinst = self.__classinstance(meth.im_class)
+	def boundmethod(self, meth):
+		klassinst = self.classinstance(meth.im_class)
 		inst = getattr(klassinst, meth.__name__)
 
 		if not inspect.ismethod(inst):

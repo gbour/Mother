@@ -47,6 +47,10 @@ CONTEXT
  . by default, a plugin receive an AnonymousContext.
  . a signed plugin (+md5 checked files) known by mother may gain higher access rights (e.g higher context)
 
+FORMS:
+ . use formbuild (http://formbuild.org/docs/manual.html) and formencode
+(http://www.formencode.org)
+
 DOC
  . comments whole code
  . reference documentation

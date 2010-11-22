@@ -20,6 +20,7 @@ __license__ = """
 """
 
 import sys, inspect, types
+from tentacles.table import Object, MetaObject
 
 #def callback(fnc):
 #	print "callback(%s)" % fnc.__name__
@@ -64,6 +65,7 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 
 class CallableBuilder(type):
 	def __new__(cls, name, bases, dct):
+		print "CallableINIT", name
 		if not 'url' in dct:
 			dct['url'] = '/' + name.lower()
 		elif dct['url'] is not None and not dct['url'].startswith('/'):
@@ -72,6 +74,16 @@ class CallableBuilder(type):
 		return type.__new__(cls, name, bases, dct)
 
 class Callable(object):
-	__metaclass__ = CallableBuilder
-	
+	#BUG: when class inherit both from Object (db abstraction) and Callable,
+	#     only one metaclass __new__() will be executed (ones of the 1st parent class
+	#     declared
+	#	__metaclass__ = CallableBuilder
+	pass
 
+#class COBBuilder(MetaObject, CallableBuilder):
+#	def __new__(cls, name, bases, dct):
+#		print "COB::new", name
+#		return super(COBBuilder, cls).__new__(cls, name, bases, dct)
+
+#class CallableObject(Object, Callable):
+#	__metaclass__ = COBBuilder

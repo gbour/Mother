@@ -57,6 +57,10 @@ class Mother(object):
 
 		#. bootstrap pluggable plugin
 		self.plug = Pluggable(config.plugdir, self.db, Context(self))
+
+		from mother import routing
+		import functools
+		routing.url = functools.partial(routing.url, self.plug)
 		
 	def run(self):
 		root = Resource()
