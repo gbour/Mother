@@ -33,7 +33,11 @@ def url(plug, target, postfix=None, **kwargs):
 
 		Return url as a string
 	"""
-	#print 'URL=', target, dir(target), target.__module__
+	print 'URL=', target, dir(target) #, target.__module__
+
+	if inspect.ismodule(target):
+		return '/%s' % target.__name__.rsplit('.', 1)[0].replace('.','/')
+
 	## 
 	#TODO: need to be reviewed
 	uri = '/%s' % target.__module__.rsplit('.', 1)[0].replace('.','/') 
@@ -70,7 +74,8 @@ def url(plug, target, postfix=None, **kwargs):
 			uri += '%s' % postfix
 
 	if len(kwargs) > 0:
-		qstr = '&'.join(["%s=%s" % (qp(k), qp(kwargs[k])) for k in kwargs])
+		print 'kwargs=', kwargs
+		qstr = '&'.join(["%s=%s" % (qp(k), qp(unicode(kwargs[k]))) for k in kwargs])
 		uri += '?' + qstr
 
 	return(uri)
