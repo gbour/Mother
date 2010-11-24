@@ -68,7 +68,7 @@ class Mother(object):
 
 		#. FINAL!!! start listening on the network
 		self.logger.info('Mother start listening...')
-		reactor.listenTCP(self.config.port, server.Site(root))
+		reactor.listenTCP(self.config.port, server.Site(root, logPath=self.config.accesslog))
 		reactor.run()
 		
 	def list_plugins(self):

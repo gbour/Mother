@@ -30,6 +30,7 @@ from twisted.web            import server
 from twisted.web.resource   import Resource
 
 from mother                 import Mother
+from mother                 import autoreload
 
 
 # default settings
@@ -38,6 +39,7 @@ defaults = {
     'plugdir'       : '/var/lib/mother/plugins',
     'database'      : '/var/lib/mother/mother.db',
     'port'          : 9998,
+    'accesslog'     : '/var/log/mother_access.log',
     'logfile'       : '/var/log/mother.log',
     'loglevel'      : 'error',
 }
@@ -55,8 +57,11 @@ if __name__ == '__main__':
         default=defaults['database'],
         help='database URI')
     parser.add_option('-p', '--port'       , dest='port',
-        default=defaults['port'],
+        default=defaults['port'], type="int",
         help='listening port')
+    parser.add_option('-a', '--access-log' , dest='accesslog',
+        default=defaults['accesslog'],
+        help='application access log file')
     parser.add_option('-f', '--log-file'    , dest='logfile',
         default=defaults['logfile'],
         help='application log file')
@@ -88,7 +93,8 @@ if __name__ == '__main__':
         
         if not hasattr(cfg, opt.dest) or getattr(options, opt.dest) != opt.default:
             setattr(cfg, opt.dest, getattr(options, opt.dest))
-        
+
+
     if options.status:
         print "status"
         sys.exit(1)
@@ -104,7 +110,8 @@ if __name__ == '__main__':
         for plug in mom.list_plugins():
             print " . %s" % plug
         sys.exit(0)
-        
-    mom.run()
+      
+    #mom.run()			
+    autoreload.main(mom.run)
     
 
