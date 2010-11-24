@@ -169,6 +169,23 @@ class FuncNode(Resource):
 	def __repr__(self):
 		return 'FuncNode(%s)' % self.func.__name__
 
+class TemplateNode(Resource):
+	#TODO: use twisted.web.ErrorPage as base
+	def __init__(self, module, tmpl):
+		Resource.__init__(self)
+
+		self.module = module
+		self.tmpl   = tmpl
+
+	def render_GET(self, request):
+		appcontext = self.module.CONTEXT
+
+		#TODO: generic
+		request.setResponseCode(404)
+		return appcontext.render(self.tmpl)
+
+	def getChild(self, name, request):
+		return self
 
 class PluginNode(Resource):
 	def __init__(self, plugin):
@@ -189,7 +206,7 @@ class PluginNode(Resource):
 		return m.render(request)
 
 	def getChild(self, path, request):
-		#print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
+		print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
 
 		uri = '/' + path
 		if len(request.postpath) > 0:
@@ -211,4 +228,6 @@ class PluginNode(Resource):
 
 		# no resource found
 		print "NO RESOURCE FOUND"
+		if routing.HTTP_404 in self.plugin.flat_urls:
+			return self.plugin.flat_urls[routing.HTTP_404]
 		return NoResource('Not Found')

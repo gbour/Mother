@@ -143,8 +143,10 @@ class Pluggable(object):
 				. a simple regex  (i.e: /foo/{bar})
 				. a full regex		(i.e: /foo/(?<bar>[^/]+))
 				"""
-				if isinstance(target, (static.File, template.Template)):
+				if isinstance(target, static.File):
 					plugin.addurl(url, target); continue
+				elif isinstance(target, template.Template):
+					plugin.addurl(url, TemplateNode(mod, target)); continue
 			
 
 				# resolve unbound methods
