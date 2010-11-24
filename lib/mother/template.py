@@ -7,8 +7,12 @@ from mako.lookup     import TemplateLookup
 from mother import routing
 
 class Static(static.File):
-	def __init__(self, path, name=None, *args, **kwargs):
+	def __init__(self, path, *args, **kwargs):
 		basedir =	os.path.dirname(inspect.getframeinfo(inspect.currentframe().f_back)[0])
+		print '>>>', path, args, kwargs
+		name = None
+		if 'name' in kwargs:
+			name = kwargs['name']; del kwargs['name']
 		static.File.__init__(self, os.path.join(basedir, path), *args, **kwargs)
 
 		if name is not None:
@@ -19,6 +23,9 @@ class Static(static.File):
 
 			# get module instance
 			app = inspect.getmodule(inspect.currentframe().f_back)
+			# clb module is current, aka mother.template
+			# we want it to be app, to get correct url() resolution
+			clb.__module__ = app.__name__
 			setattr(app, name, clb)
 
 
