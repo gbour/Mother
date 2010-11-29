@@ -9,8 +9,22 @@ URLs management
 		 size: {arg1:22}
      type: {arg1:d}           (d: integer, s:string)
 
+ . extensible URL definition:
+	 an url is constituted of:
+		  - the targeted url (http://xxx)
+		  - the HTTP method (GET)
+      - the wanted content-type (text/html, application/json)
+      - the user agent  (Mozilla, Opera, WebKit iPhone, Android)
+
+	thus we can different callbacks per extensible url
+	(i.e same targeted url, but different user agent)
+
+	url(/a/b, ua='Mozilla') => Template('A')
+	url(/a/b, ua='Android') => Template('B')
+
 REPORTING:
  . log url access "à la" apache
+	 possibility to have a distinct -per application- file
 
 PLUGINS
  . allow several plugins directory on disk (/var/lib/mother, /home/xoxo/.mother, ...)
@@ -32,6 +46,20 @@ NOTIFICATIONS
 AUTHENTICATION
  . special plugin (database tables)
  . define hooks to intercept queries
+
+ we should have several levels of accessrights
+	(i) per application: user/group is (not) authorized to access application
+	(i) per extended url
+		  user can only access certain pages, not all
+
+			maybe define url sets, to ease (i.e: viewed, editor, administrator)
+
+	(ii) per record tuple (per access mode: read/write/delete/new)
+		  user may only access certain records
+			- the one the created
+			- the ones created by XXX user, or by YYY group
+			- alls
+
 
 AUTORELOAD
  . watch for source files changes
@@ -64,3 +92,6 @@ RULES:
 
  . @callbacl(url=) superseed global URLS dict url, which superseed default @callback
    url (e.g function name)
+
+EXTRA:
+ . add support for css template sass a/o less
