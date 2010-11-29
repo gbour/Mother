@@ -55,6 +55,11 @@ class Mother(object):
 #		print config.database, Storage.__objects__
 		self.db = Storage(config.database)
 
+		# load authentification 
+		#TODO: should be optional
+		import mother.authentication
+		self.db.create()
+
 		#. bootstrap pluggable plugin
 		self.plug = Pluggable(config.plugdir, self.db, Context(self))
 
@@ -64,7 +69,24 @@ class Mother(object):
 		
 	def run(self):
 		root = Resource()
+
+		from mother.authentication import MotherRealm
+		from twisted.cred.portal   import Portal
+		portal = Portal(MotherRealm(root))
+		from twisted.cred import checkers, credentials
+		mycheck = checkers.InMemoryUsernamePasswordDatabaseDontUse()
+		mycheck.addUser('foo', 'bar')
+		portal.registerChecker(mycheck)
+		# allow anonymous access (for login form)
+		#portal.registerChecker(checkers.AllowAnonymousAccess(), credentials.IAnonymous)
+
 		self.plug.initialize(root)
+
+		from twisted.web.guard import DigestCredentialFactory
+		from twisted.web.guard import HTTPAuthSessionWrapper
+
+		wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
+		root    = wrapper
 
 		#. FINAL!!! start listening on the network
 		self.logger.info('Mother start listening...')
