@@ -78,8 +78,13 @@ def query_builder(method, func):
 		appcontext = sys.modules[func.__module__.split('.',1)[0]].CONTEXT
 		print "AppContext=", appcontext
 
+		#TODO: this is not correct, has it doesn't work when we have simultaneous	requests
+		# !! FOR TESTS ONLY !!
+		sys.modules[func.__module__.split('.',1)[0]].SESSION = request.getSession()
+
 		value = ''; ret = None
 		if code == 200:
+			print argmap
 			ret = func(**argmap)
 			print "RET=", ret
 
@@ -153,6 +158,9 @@ class ClassNode(Resource):
 			if hasattr(inst, method) and inspect.ismethod(getattr(inst, method)):
 				setattr(self, 'render_%s' % method, query_builder(method, getattr(inst, method)))
 
+	def auth(self):
+		return True
+
 
 class FuncNode(Resource):
 	def __init__(self, func):
@@ -166,8 +174,12 @@ class FuncNode(Resource):
 		for method in func.__callable__['method']:
 			setattr(self, 'render_%s' % method, query_builder(method, func))
 
+
 	def __repr__(self):
 		return 'FuncNode(%s)' % self.func.__name__
+
+	def auth(self):
+		return True
 
 class TemplateNode(Resource):
 	#TODO: use twisted.web.ErrorPage as base
@@ -186,6 +198,9 @@ class TemplateNode(Resource):
 
 	def getChild(self, name, request):
 		return self
+
+	def auth(self):
+		return True
 
 class PluginNode(Resource):
 	def __init__(self, plugin):
@@ -208,9 +223,13 @@ class PluginNode(Resource):
 	def getChild(self, path, request):
 		print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
 
-		uri = '/' + path
-		if len(request.postpath) > 0:
-			uri += '/' + '/'.join(request.postpath)
+		# path may be LOGIN (auth)
+		if isinstance(path, str):
+			uri = '/' + path
+			if len(request.postpath) > 0:
+				uri += '/' + '/'.join(request.postpath)
+		else:
+			uri = path
 
 		print 'uri=', uri
 		if uri in self.plugin.flat_urls:

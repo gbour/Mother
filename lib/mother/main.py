@@ -60,7 +60,7 @@ class Mother(object):
 		import mother.authentication
 		self.db.create()
 
-		#. bootstrap pluggable plugin
+
 		self.plug = Pluggable(config.plugdir, self.db, Context(self))
 
 		from mother import routing
@@ -70,7 +70,7 @@ class Mother(object):
 	def run(self):
 		root = Resource()
 
-		from mother.authentication import MotherRealm
+		from mother.authentication import MotherRealm, AuthWrapper
 		from twisted.cred.portal   import Portal
 		portal = Portal(MotherRealm(root))
 		from twisted.cred import checkers, credentials
@@ -80,13 +80,17 @@ class Mother(object):
 		# allow anonymous access (for login form)
 		#portal.registerChecker(checkers.AllowAnonymousAccess(), credentials.IAnonymous)
 
-		self.plug.initialize(root)
+		#self.plug.initialize(root)
 
 		from twisted.web.guard import DigestCredentialFactory
 		from twisted.web.guard import HTTPAuthSessionWrapper
 
-		wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
+		#wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
+		wrapper = AuthWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
+		#wrapper.putChild(root)
 		root    = wrapper
+
+		self.plug.initialize(root)
 
 		#. FINAL!!! start listening on the network
 		self.logger.info('Mother start listening...')

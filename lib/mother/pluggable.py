@@ -60,7 +60,9 @@ class Plugin(Object):
 				- simple regex (/my/{url})
 				- true regex   (r'/my/(?<url>[^/]+))
 				- HTTPCode class
+
 		"""
+		#TODO: should raise exception/warning on duplicates url
 		store = self.flat_urls
 
 		if isinstance(url, types.StringTypes):
@@ -82,6 +84,23 @@ class Plugin(Object):
 				store    = self.regex_urls
 				resource = (re.compile(_url), resource)
 
+		elif inspect.isclass(url) and issubclass(url, routing.ActionURL):
+			""" when url is actionURL (LOGIN, LOGOUT),
+				we store both object, and string url
+
+				string-url is to resolve a query
+			"""
+			store[url.url] = resource
+
+			#TODO: should not be done here
+			if url == routing.LOGIN:
+				setattr(resource, 'render_POST', query_builder('POST', resource.func.__callable__['postlogin']))
+
+		elif isinstance(url, routing.ActionURL):
+			# keep this order, or you will have the wrong url
+			store[url.url] = resource
+			url = url.__class__ # we want the class definition, not instance
+		
 		store[url] = resource
 	
 	def objects(self):
@@ -121,6 +140,7 @@ class Pluggable(object):
 
 			mod.CONTEXT = AppContext(mod)
 			mod.PLUGIN  = plugin
+			plugin.MODULE = mod
 
 			plugin.root = PluginNode(plugin)
 			root.putChild(plugin.name, plugin.root)
@@ -131,6 +151,12 @@ class Pluggable(object):
 				print "/!\ plugin UUID does not match database one (%s vs %s)" % \
 					(plugin.uuid, mod.UUID)
 				continue
+
+			# set default values 
+			#TODO: use a generic directory
+			#TODO: should be done earlier, before @callback decorators were called
+			if not hasattr(mod, 'AUTHENTICATION'):
+				mod.AUTHENTICATION = False
 
 			# load URL callbacks
 			#print "loop on URLS"

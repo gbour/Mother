@@ -94,7 +94,7 @@ class HTTPCode(object):
 	def __init__(self, msg):
 		self.msg = msg
 
-for code in (200, 204, 400, 404, 409, 500):
+for code in (200, 204, 400, 401, 403, 404, 409, 500):
 	exec "class HTTP_%d(HTTPCode): code = %d" % (code, code);
 
 
@@ -108,3 +108,19 @@ class HTTP_404(HTTPCode):
 class HTTP_401(HTTPCode):
 	code = 401
 """
+
+class ActionURL(object):
+	pass
+
+class LOGIN(ActionURL):
+	url = '/login'
+
+	def __init__(self, url):
+		self.url = url
+
+class LOGOUT(ActionURL):
+	url = '/logout'
+
+	def __init__(self, url):
+		self.url = url
+

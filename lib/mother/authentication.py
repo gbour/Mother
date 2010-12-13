@@ -24,6 +24,7 @@ from tentacles               import *
 from tentacles.fields        import *
 from mother.dbfields         import *
 from mother.pluggable        import Plugin
+from mother                  import routing
 
 from zope.interface          import implements
 from twisted.cred            import checkers
@@ -116,5 +117,164 @@ class MotherRealm(object):
 			else:
 				return (IResource, self.res, lambda: None)
 
+class UnauthorizedResource(Resource):
+	isLeaf = True
 	
+	def __init__(self):
+		pass
+
+	def render(self, request):
+		ctype = request.getHeader('content-type')
+		request.setResponseCode(401)
+
+		print 'Zzzz', ctype
+		if ctype == 'text/html':
+			print 'yop'
+			return '<html><body><b>Unauthorized</b></body></html>'
+
+		return 'Unauthorized'
+
+	def getChildWithDefault(self, path, request):
+		return self
+
+from twisted.web.server import Session
+from twisted.python.components import registerAdapter
+from zope.interface import Interface, Attribute, implements
+
+class IMotherSession(Interface):
+	logged = Attribute("True if authenticated (logged)")
+	user   = Attribute("User logged")
+
+class MotherSession(object):
+	implements(IMotherSession)
+
+	def __init__(self, session):
+		self.logged = False
+		self.user   = None
+
+registerAdapter(MotherSession, Session, IMotherSession)
+
+class AuthWrapper(Resource):
+	#TODO: use implements(IResource) instead
+	isLeaf = False
+
+	def __init__(self, portal, credentialFactories):
+			Resource.__init__(self)
+
+			self._portal              = portal
+			self._credentialFactories = credentialFactories
+
+	#def render(self, request):
+	#	# called 
+	#	print 'auth::rendering', request.path
+
+	def getChildWithDefault(self, path, request):
+		# Don't consume any segments of the request - this class should be
+		# transparent!
+		#request.postpath.insert(0, request.prepath.pop())
+
+		print 'auth::getChild', path, request.path
+		if path not in self.children:
+			return UnauthorizedResource()
+
+		child = self.children[path]
+		mod   = child.plugin.MODULE
+
+		# AUTH deactivated for application
+		if not mod.AUTHENTICATION:
+			return child
+
+		login = child.getChild(routing.LOGIN, request)
+		print 'login res=', login
+		#if path == login
+
+
+
+		# Does requested target require authentication
+		print path, request.postpath, request.prepath
+		path = request.postpath.pop(0)
+		request.prepath.append(path)
+
+		target = child.getChild(path, request)
+		print 'target=', target
+		from twisted.web.resource import NoResource
+		if isinstance(target, NoResource):
+			return target
+
+		if hasattr(target, 'func'):
+			print 'auth req=', target.func.__callable__.get('auth_required', True)
+		# auth required for this target ?
+		if hasattr(target, 'func') and not target.func.__callable__.get('auth_required', True):
+			return target
+
+		# Is user authenticated ?
+		# we have 2 methods of authentication:
+		#		. http auth
+		#		. cookie/session
+
+		#NOTE: if App. does not set callback for LOGIN i/o LOGOUT urls, 
+		# we use HTTP authentication
+		http_auth = request.getHeader('authorization')
+		sess      = IMotherSession(request.getSession())
+		print 'SESS=', sess.logged, sess.user
+		if not http_auth and not sess.logged:
+			print 'No authenticated'
+			#NOTE: this ressource MUST return a 404
+			return child.getChild(routing.LOGIN, request)
+
+			"""
+			class LoginResource(Resource):
+				def render(self, request):
+					request.setResponseCode(401)
+					#request.responseHeaders.addRawHeader(
+					#	'www-authenticate', "Basic realm=\"bozo\""
+					#)
+
+					return '<html><body><b>MUST LOG</b></body></html>'
+			"""
+			#return LoginResource()
+
+			# when redirecting, we should memorize current request 
+			# to redisplay page after login
+			#   + GET params
+			#   + POST/PUT params
+			# => VIEWSTATE
+			"""
+			class RedirectResource(Resource):
+				def render(self, request):
+					request.redirect('/' + path + routing.LOGIN.url)
+					return ''
+			"""
+			#return RedirectResource()
+
+			
+
+		"""
+            return util.DeferredResource(self._login(Anonymous()))
+        factory, respString = self._selectParseHeader(authheader)
+        if factory is None:
+            return UnauthorizedResource(self._credentialFactories)
+        try:
+            credentials = factory.decode(respString, request)
+        except error.LoginFailed:
+            return UnauthorizedResource(self._credentialFactories)
+        except:
+            log.err(None, "Unexpected failure from credentials factory")
+            return ErrorPage(500, None, None)
+        else:
+            return util.DeferredResource(self._login(credentials))
+
+       @return: A two-tuple of a factory and the remaining portion of the
+            header value to be decoded or a two-tuple of C{None} if no
+            factory can decode the header value.
+
+        elements = header.split(' ')
+        scheme = elements[0].lower()
+        for fact in self._credentialFactories:
+            if fact.scheme == scheme:
+                return (fact, ' '.join(elements[1:]))
+        return (None, None)
+		"""
+		return child
+
 
