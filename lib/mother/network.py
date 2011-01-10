@@ -214,11 +214,28 @@ class PluginNode(Resource):
 
 	def render(self, request):
 		#print 'PluginNode::render', request.uri
+		from twisted.web2 import http_headers
+		head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
+		head.setRawHeaders('Accept', (request.getHeader('Accept'),))
+		accept = head.getHeader('Accept')
+		accept = sorted([(mime, prio) for mime, prio in accept.iteritems()], key=lambda	x: -x[1])
+		print 'accept=', accept, accept[0]
+
+		if self.plugin.flat_urls.hasURL('/'):
+			urls = self.plugin.flat_urls.getURL('/')
+			for ctype, weight in accept:
+				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
+				if ctype in urls:
+					return self.plugin.flat_urls[('/', ctype)].render(request)
+
+		return Resource.render(self, request)
+		"""
 		m = self.plugin.flat_urls.get('/', None)
 		if m is None:
 			return Resource.render(self, request)
 
 		return m.render(request)
+		"""
 
 	def getChild(self, path, request):
 		print 'PluginNode::getChild', request.uri, path, request.prepath, request.postpath
@@ -232,10 +249,45 @@ class PluginNode(Resource):
 			uri = path
 
 		print 'uri=', uri
-		if uri in self.plugin.flat_urls:
-			print 'found in flaturi', self.plugin.flat_urls[uri]
-			return self.plugin.flat_urls[uri]
+		from twisted.web2 import http_headers
+		head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
+		head.setRawHeaders('Accept', (request.getHeader('Accept'),))
+		accept = head.getHeader('Accept')
+		accept = sorted([(mime, prio) for mime, prio in accept.iteritems()], key=lambda	x: -x[1])
+		print 'accept=', accept, accept[0]
 
+		if self.plugin.flat_urls.hasURL(uri):
+			print 'found in flaturi' #, self.plugin.flat_urls[uri]
+			urls = self.plugin.flat_urls.getURL(uri)
+			print urls
+			for ctype, weight in accept:
+				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
+				print ctype
+				if ctype in urls:
+					print 'FOUND:', uri, ctype
+					return self.plugin.flat_urls[(uri, ctype)]
+
+			return NoResource('Not Found')
+
+		#TODO: really not optimal
+		for raw, sub in self.plugin.regex_urls.iteritems():
+			print raw, sub
+			for ctype, weight in accept:
+				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
+				if ctype in sub:
+					(rx, target) = self.plugin.regex_urls[(raw, ctype)]
+
+					m = rx.match(uri)
+					if m is not None:
+						print '%s MATCH %s' % (uri, raw), target
+						print m.groupdict()
+						# gamed groups a set as request args
+						request.args.update(m.groupdict())
+
+						print 'RETURNING', target, type(target)
+						return target
+
+		"""
 		for raw, (rx, target) in self.plugin.regex_urls.iteritems():
 			m = rx.match(uri)
 			if m is not None:
@@ -244,9 +296,20 @@ class PluginNode(Resource):
 				request.args.update(m.groupdict())
 
 				return target
-
+		"""
 		# no resource found
 		print "NO RESOURCE FOUND"
+		"""
 		if routing.HTTP_404 in self.plugin.flat_urls:
 			return self.plugin.flat_urls[routing.HTTP_404]
+		"""
+		if self.plugin.flat_urls.hasURL(routing.HTTP_404):
+			urls = self.plugin.flat_urls.getURL(routing.HTTP_404)
+			for ctype, weight in accept:
+				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
+				if ctype in urls:
+					print 'RES=', self.plugin.flat_urls[(routing.HTTP_404, ctype)]
+					return self.plugin.flat_urls[(routing.HTTP_404, ctype)]
+
+
 		return NoResource('Not Found')

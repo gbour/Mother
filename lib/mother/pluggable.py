@@ -269,7 +269,7 @@ class Pluggable(object):
 			if klass.url is not None:
 				#TODO: if url is a rx, it is more complex
 				url = klass.url + url
-			plugin.addurl(url, fncnode)
+			plugin.addurl(url, obj.__callable__['content_type'], fncnode)
 
 	def classinstance(self, klass):
 		if klass not in self.instances:

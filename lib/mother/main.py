@@ -88,7 +88,7 @@ class Mother(object):
 		#wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
 		wrapper = AuthWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
 		#wrapper.putChild(root)
-		root    = wrapper
+		##root    = wrapper
 
 		self.plug.initialize(root)
 

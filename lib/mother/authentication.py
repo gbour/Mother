@@ -30,6 +30,7 @@ from zope.interface          import implements
 from twisted.cred            import checkers
 from twisted.cred.portal     import IRealm
 from twisted.web.resource    import IResource
+from twisted.web             import http
 
 
 class User(Object):
@@ -154,6 +155,18 @@ class MotherSession(object):
 
 registerAdapter(MotherSession, Session, IMotherSession)
 
+class HTTPAuthResource(Resource):
+	def render(self, request):
+		request.setResponseCode(http.UNAUTHORIZED)
+					#request.responseHeaders.addRawHeader(
+					#	'www-authenticate', "Basic realm=\"bozo\""
+					#)
+
+		return '<html><body><b>MUST LOG</b></body></html>'
+
+	def getChildWithDefault(self, path, request):
+		return self
+
 class AuthWrapper(Resource):
 	#TODO: use implements(IResource) instead
 	isLeaf = False
@@ -171,14 +184,25 @@ class AuthWrapper(Resource):
 	def getChildWithDefault(self, path, request):
 		# Don't consume any segments of the request - this class should be
 		# transparent!
-		#request.postpath.insert(0, request.prepath.pop())
+		request.postpath.insert(0, request.prepath.pop())
 
-		print 'auth::getChild', path, request.path
+		# no resource for this url
 		if path not in self.children:
 			return UnauthorizedResource()
 
 		child = self.children[path]
 		mod   = child.plugin.MODULE
+
+		# get Accept mime-types, by preference descendant order
+		print request.getHeader('Accept')
+		from twisted.web2 import http_headers
+		head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
+		head.setRawHeaders('Accept', (request.getHeader('Accept'),))
+		accept = head.getHeader('Accept')
+		print accept
+
+		accept = sorted([(mime, prio) for mime, prio in accept.iteritems()], key=lambda	x: -x[1])
+		print 'Accept=', accept
 
 		# AUTH deactivated for application
 		if not mod.AUTHENTICATION:

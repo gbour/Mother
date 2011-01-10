@@ -19,7 +19,16 @@ __license__ = """
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
 
-from mother.callable import Callable, callback
+from mother.callable import Callable, callback #, COBBuilder
+from tentacles import *
+from tentacles.fields import *
+
+class Turd(Callable, Object):
+	#__metaclass__ = COBBuilder
+
+	id   = Integer(pk=True, autoincrement=True)
+	name = String()
+
  
 class Sample(Callable):
 	"""

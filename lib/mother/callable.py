@@ -38,6 +38,7 @@ from tentacles.table import Object, MetaObject
 
 def callback(method='GET', autobind=True, *args, **kwargs):
 	def deco(fnc):
+		print 'CALLBACK', fnc
 		# base url. May be overridden if 'name' is set
 		kwargs['_url']     = '/' + fnc.__name__ # not necessary. TO REMOVE
 		kwargs['method']   = method
@@ -78,6 +79,8 @@ class Callable(object):
 	#     only one metaclass __new__() will be executed (ones of the 1st parent class
 	#     declared
 	#	__metaclass__ = CallableBuilder
+	
+	#def __init__(self, context):
 	pass
 
 #class COBBuilder(MetaObject, CallableBuilder):
