@@ -26,7 +26,7 @@ from mother.callable        import Callable
 from mother                 import template, routing
 
 CONTENTTYPE_JSON = 'application/json'
-def query_builder(method, func):
+def query_builder(method, func, modifiers={}, instance=None):
 	(ARGS, VAARGS, KWARGS, DFTS) = inspect.getargspec(func)
 
 	if DFTS:
@@ -44,6 +44,11 @@ def query_builder(method, func):
 		print 'SESSION=', request.getSession()
 
 		content_type = request.getHeader('content-type')
+		print "RCONTENT=", request.content.read()
+		#TODO: we should check if content type match default content type or modifiers
+		# (case Callable classes)
+
+		#TODO: following bloc is not generic enough. What if we do HTTP POST? 
 		if method in ['PUT', 'POST']:
 			argmap['content'] = request.content
 
@@ -134,10 +139,14 @@ def query_builder(method, func):
 
 
 		request.setResponseCode(code, msg)
-		if content_type == CONTENTTYPE_JSON:
-			value = cjson.encode(value)
-		else:
-			value = str(value)
+		if content_type in modifiers:
+			print "FOUND A MODIFIER:", content_type, modifiers[content_type]
+			value = modifiers[content_type](value)
+
+		#if content_type == CONTENTTYPE_JSON:
+		#	value = cjson.encode(value)
+		#else:
+		value = str(value)
 		print code, value
 		return value
 	 
@@ -154,9 +163,15 @@ class ClassNode(Resource):
 		if not isinstance(inst, Callable):
 			return
 
-		for method in ('GET', 'PUT', 'DELETE'):
+		for method in ('HEAD', 'GET', 'POST', 'PUT', 'DELETE'):
 			if hasattr(inst, method) and inspect.ismethod(getattr(inst, method)):
-				setattr(self, 'render_%s' % method, query_builder(method, getattr(inst, method)))
+				modifiers = getattr(inst, method).__dict__.get('__callable__', dict()).get('modifiers', dict())
+				modifiers.update(inst.__modifiers__)
+				print "MODIFIERS", method, "=", modifiers
+
+				setattr(self, 'render_%s' % method, query_builder(method, getattr(inst,
+					method), modifiers, instance=inst))
+
 
 	def auth(self):
 		return True
@@ -169,17 +184,18 @@ class FuncNode(Resource):
 
 		self.func  = func
 		self.url   = func.__callable__.get('url', func.__callable__['_url'])
+		self.modifiers = func.__callable__.get('modifiers', dict())
 
 		# possible methods are GET, PUT, DELETE
 		for method in func.__callable__['method']:
-			setattr(self, 'render_%s' % method, query_builder(method, func))
-
+			setattr(self, 'render_%s' % method, query_builder(method, func,	self.modifiers))
 
 	def __repr__(self):
 		return 'FuncNode(%s)' % self.func.__name__
 
 	def auth(self):
 		return True
+
 
 class TemplateNode(Resource):
 	#TODO: use twisted.web.ErrorPage as base

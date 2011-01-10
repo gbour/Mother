@@ -32,6 +32,7 @@ from tentacles.queryset   import filter
 from mother.network       import *
 from mother.context       import AppContext
 from mother               import template
+from mother.eurl          import eURL
 
 
 class Plugin(Object):
@@ -49,10 +50,10 @@ class Plugin(Object):
 		## urls is made of:
 		#  . flat urls (exactly match)
 		#  . regular expressions
-		self.flat_urls		= {}
-		self.regex_urls   = odict()
+		self.flat_urls		= eURL() #{}
+		self.regex_urls   = eURL() #odict()
 
-	def addurl(self, url, resource):
+	def addurl(self, url, content_type, resource):
 		"""Append a new URL resource
 
 			@url: relative to application root. May be:
@@ -61,9 +62,14 @@ class Plugin(Object):
 				- true regex   (r'/my/(?<url>[^/]+))
 				- HTTPCode class
 
+			@content_type: may be a single value (i.e 'text/plain') or a list (i.e
+			('text/html','application/xhtml+xml'))
 		"""
 		#TODO: should raise exception/warning on duplicates url
 		store = self.flat_urls
+		print 'CTYPE=', content_type, url, resource
+		if not isinstance(content_type, (tuple, list)):
+			content_type = (content_type,)
 
 		if isinstance(url, types.StringTypes):
 			if isinstance(resource, template.Static):
@@ -90,7 +96,8 @@ class Plugin(Object):
 
 				string-url is to resolve a query
 			"""
-			store[url.url] = resource
+			for ctype in content_type:
+				store[(url.url, ctype)] = resource
 
 			#TODO: should not be done here
 			if url == routing.LOGIN:
@@ -98,10 +105,12 @@ class Plugin(Object):
 
 		elif isinstance(url, routing.ActionURL):
 			# keep this order, or you will have the wrong url
-			store[url.url] = resource
+			for ctype in content_type:
+				store[(url.url, ctype)] = resource
 			url = url.__class__ # we want the class definition, not instance
 		
-		store[url] = resource
+		for ctype in content_type:
+			store[(url, ctype)] = resource
 	
 	def objects(self):
 		objs = [o for (n, o) in inspect.getmembers(sys.modules[self.name]) if
@@ -169,45 +178,41 @@ class Pluggable(object):
 				. a simple regex  (i.e: /foo/{bar})
 				. a full regex		(i.e: /foo/(?<bar>[^/]+))
 				"""
-				if isinstance(target, static.File):
-					plugin.addurl(url, target); continue
-				elif isinstance(target, template.Template):
-					plugin.addurl(url, TemplateNode(mod, target)); continue
+				if not isinstance(target, (tuple,list)):
+					target = (target,)
+
+				for _target in target:
+					if isinstance(_target, static.File):
+						content_type = _target.content_type if hasattr(_target,'content_type') else '*/*'
+						plugin.addurl(url, content_type, _target); 
+						continue
+					elif isinstance(_target, template.Template):
+						plugin.addurl(url, _target.content_type, TemplateNode(mod, _target)); continue
 			
 
-				# resolve unbound methods
-				if hasattr(target, 'im_self') and target.im_self is None:
-					#callback = getattr(self.instances[callback.im_class], callback.__name__)
-					#callback = getattr(self.__classinstance(callback.im_class), callback.__name__)
-					target = self.boundmethod(target)
+					# resolve unbound methods
+					if hasattr(_target, 'im_self') and _target.im_self is None:
+						#callback = getattr(self.instances[callback.im_class], callback.__name__)
+						#callback = getattr(self.__classinstance(callback.im_class), callback.__name__)
+						_target = self.boundmethod(_target)
 
-				if not hasattr(target, '__callable__'):
-					raise Exception('%s is not callable' % inst.__name__)
-				elif 'url' in target.__callable__:
-					raise Exception("%s url cannot be redefined (is %s, try to set %s)" %\
-						(target.__name__, target.__callable__['url'], url))
+					if not hasattr(_target, '__callable__'):
+						raise Exception('%s is not callable' % _target.__name__)
+					elif 'url' in _target.__callable__:
+						raise Exception("%s url cannot be redefined (is %s, try to set %s)" %\
+							(_target.__name__, _target.__callable__['url'], url))
 
-				#print 'callback=', target
-				print 'tt=', target, target.__callable__, url
-				target.__callable__['url'] = url
-				print 'tt=', target, target.__callable__
-				plugin.addurl(url, FuncNode(target))
-				"""
-				if isinstance(callback, static.File):
-					plugin.root.resource.putChild(url, callback)
-				elif url == '/':
-					# special «root» url
-					plugin.root.resource.set_callback(callback)
-				else:
-					plugin.root.resource.putChild(url, FuncNode(callback))
+					#print 'callback=', target
+					print 'tt=', _target, _target.__callable__, url
+					_target.__callable__['url'] = url
+					print 'tt=', _target, _target.__callable__
+					plugin.addurl(url, _target.__callable__['content_type'], FuncNode(_target))
 
-				plugin.urls[url] = callback
-				"""
 
 			# load plugin callbacks
 			"""
 				mod.__callbacks__ contains callback functions but we don't
-				know at wich classes it belongs (cause when decorator is called,
+				know at which classes it belongs (cause when decorator is called,
 				class methods are not yet binded to its class)
 				
 				What we try to do here is to find method parent class.
@@ -222,16 +227,17 @@ class Pluggable(object):
 						obj.__callable__['url'] = obj.__callable__['_url']
 
 					node = FuncNode(obj)
-					plugin.addurl(node.url, node)
+					plugin.addurl(node.url, obj.__callable__['content_type'], node)
 			
+				#NOTE: why limited to callable objects only
 				elif inspect.isclass(obj) and issubclass(obj, Callable) and obj is not Callable:
 					self.__classinit(obj, plugin)
 					
 				#TODO case submodule: load subclasses
 				# (I've already done this elsewere ?)
 
-			#print "MY URLS="
-			#import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
+			print "MY URLS="
+			import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
 			
 		# create all plugins storage backend
 		self.db.create()
@@ -243,19 +249,68 @@ class Pluggable(object):
 		self.instances[klass] = inst
 		
 		basename = ''
+		#NOTE: __classinit is only called if inst is callable
+		iscallable = False
+		ctypes = []
+		klassnode = None
+
 		if isinstance(inst, Callable):
+			iscallable = True
 			klassnode = ClassNode(inst)
 			#netnode.putChild(inst.__class__.__name__.lower(), klassnode)
 			#netnode = klassnode
 			if klass.url is not None:
 				print "EEE", klass.url, klassnode, inst
-				plugin.addurl(klass.url, klassnode)
-		
+				plugin.addurl(klass.url, klass.__content_type__, klassnode)
+				ctypes.append(klass.__content_type__)
+
+				for mod, clb in klass.__modifiers__.iteritems():
+					# bounding unbound method
+					if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
+						clb.__name__ in klass.__dict__:
+							inst.__modifiers__[mod] = getattr(inst, clb.__name__)
+					plugin.addurl(klass.url, mod, klassnode)
+					ctypes.append(mod)
+	
 		# if we enumerate class members, we get unbound methods
 		# whereas when we enumarate instance members, we get bounded (ie callable) methods
 		for (name, obj) in inspect.getmembers(inst):
-			if not inspect.ismethod(obj) or not hasattr(obj, '__callable__'):
+			if not inspect.ismethod(obj):
+			#or not hasattr(obj, '__callable__'):
 			#and obj.__callable__.get('autobind', False):
+				continue
+
+			if name in ('GET','HEAD','POST','PUT','DELETE'):
+				if not iscallable:
+					raise Exception("%s method name is forbidden outside callable classes" %	name)
+
+				print '~~~', name, obj.__dict__.get('__callable__', None)
+				if hasattr(obj, '__callable__'):
+					opts = obj.__callable__
+
+					if 'content_type' in opts:
+						print '/!\ WARNING: contenttype cannot be redefined in class HTTP methods	(GET, POST, ...)'
+
+					if 'modifiers' in opts:
+						if not isinstance(opts['modifiers'], dict):
+							raise Exception("modifiers must be a dictionary")
+
+						for k, clb in opts['modifiers'].iteritems():
+							if k not in ctypes:
+								plugin.addurl(klass.url, k, klassnode)
+								ctypes.append(k)
+
+							#print inspect.isfunction(clb), inspect.getargspec(clb).args
+							# bounding unbound method
+							if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
+								 clb.__name__ in klass.__dict__:
+								opts['modifiers'][k] = getattr(inst, clb.__name__)
+
+						print '%s modifiers=' % name, opts['modifiers']
+
+				continue
+
+			if not hasattr(obj, '__callable__'):
 				continue
 
 			fncnode = FuncNode(obj)

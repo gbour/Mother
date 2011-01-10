@@ -22,6 +22,8 @@ __license__ = """
 import sys, inspect, types
 from tentacles.table import Object, MetaObject
 
+from mother import modifiers
+
 #def callback(fnc):
 #	print "callback(%s)" % fnc.__name__
 #	fnc.__dict__['__callable__'] = fnc.__name__
@@ -43,6 +45,10 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 		kwargs['_url']     = '/' + fnc.__name__ # not necessary. TO REMOVE
 		kwargs['method']   = method
 		kwargs['autobind'] = autobind #???
+
+		# default content_type is 'text/html'
+		if 'content_type' not in kwargs:
+			kwargs['content_type'] = ('text/html')
 
 		fnc.__dict__['__callable__'] = kwargs
 		#fnc.__dict__['__callable__'] = {
@@ -80,8 +86,9 @@ class Callable(object):
 	#     declared
 	#	__metaclass__ = CallableBuilder
 	
-	#def __init__(self, context):
-	pass
+	#__content_type__ = 'application/json'
+	__content_type__ = 'python/object'
+	__modifiers__    = {'application/json': modifiers.json}
 
 #class COBBuilder(MetaObject, CallableBuilder):
 #	def __new__(cls, name, bases, dct):

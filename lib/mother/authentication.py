@@ -190,6 +190,7 @@ class AuthWrapper(Resource):
 		if path not in self.children:
 			return UnauthorizedResource()
 
+		## child is a plugin root Resource
 		child = self.children[path]
 		mod   = child.plugin.MODULE
 
@@ -208,11 +209,8 @@ class AuthWrapper(Resource):
 		if not mod.AUTHENTICATION:
 			return child
 
+		# get login resource if set
 		login = child.getChild(routing.LOGIN, request)
-		print 'login res=', login
-		#if path == login
-
-
 
 		# Does requested target require authentication
 		print path, request.postpath, request.prepath
@@ -220,7 +218,6 @@ class AuthWrapper(Resource):
 		request.prepath.append(path)
 
 		target = child.getChild(path, request)
-		print 'target=', target
 		from twisted.web.resource import NoResource
 		if isinstance(target, NoResource):
 			return target
