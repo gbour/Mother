@@ -30,6 +30,16 @@ class EUrlTests(TestCase):
 		self.assertEqual(len(d), 2)
 		self.assertEqual(d.has_key(('/foo', 'text/html')), True)
 
+	def test_getWithBaseContentType(self):
+		d = eURL()
+		d[('/foo', 'text/plain')] = 'MyResource'
+		d[('/foo', 'text/html')]  = 'MyResource2'
+
+		self.assertEqual(d.getWithBaseContentType(('/foo', 'text/html')), 
+			('text/html',	'MyResource2'))
+		self.assertEqual(d.getWithBaseContentType(('/foo', 'text/*')), 
+			('text/plain',	'MyResource'))
+		self.assertRaises(KeyError, d.getWithBaseContentType, ('/foo', 'text/foo'))
 
 	def test_getURL(self):
 		d = eURL()
@@ -37,8 +47,8 @@ class EUrlTests(TestCase):
 		d[('/foo', 'text/html')]  = 'MyResource2'
 
 		self.assertEqual(d.getURL('/foo'), {
-			'*/*'        : [None, 'MyResource', 'MyResource2'],
-			'text/*'     : [None, 'MyResource', 'MyResource2'],
+			'*/*'        : [None, ('text/plain', 'MyResource'), ('text/html', 'MyResource2')],
+			'text/*'     : [None, ('text/plain', 'MyResource'), ('text/html', 'MyResource2')],
 			'text/plain' : ['MyResource'],
 			'text/html'  : ['MyResource2'],
 		})

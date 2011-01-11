@@ -44,12 +44,16 @@ class eURL(dict):
 		for _ctype in ('%s/*' % key[1].split('/',1)[0], '*/*'):
 			items = subdict.setdefault(_ctype, list((None,)))
 			if items[0] != value:
-				items.append(value)
+				items.append((key[1], value))
 
 		self.__privlen__ += 1
 
 
-	def __getitem__(self, key):
+	def getWithBaseContentType(self, key):
+		"""
+			Get value exactly matching (url, content-type) key
+		"""
+
 		if not isinstance(key, (list, tuple)) or len(key) != 2:
 			raise Exception("Invalid key. Must be (url, content-type) tuple")
 
@@ -60,7 +64,11 @@ class eURL(dict):
 				return ret[1]
 			raise KeyError
 
-		return ret[0]
+		return (key[1], ret[0])
+
+
+	def __getitem__(self, key):
+		return self.getWithBaseContentType(key)[1]
 
 
 	def __delitem__(self, key):
@@ -76,8 +84,11 @@ class eURL(dict):
 		#TODO: flawless: the same value could have be set with another content-type
 		# but works as a 1st approach
 		for _ctype in ('%s/*' % key[1].split('/',1)[0], '*/*'):
+			if _ctype == key[1]:
+				continue
+
 			ctypedict = subdict[_ctype]
-			ctypedict.remove(items[0])
+			ctypedict.remove((key[1], items[0]))
 
 			if len(ctypedict) == 1 and ctypedict[0] is None:
 				del subdict[_ctype]
@@ -151,3 +162,4 @@ class eURL(dict):
 				return _ctype
 		
 		return None
+
