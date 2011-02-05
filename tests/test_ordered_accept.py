@@ -15,13 +15,14 @@ def myneq(self, other):
 		self.mediaSubtype == other.mediaSubtype and
 		self.params == other.params)
 
-
+"""
 class mydict(odict):
 	def __init__(self, _iter):
 		l = list(_iter)
 		for mime, weight in l:
 			setattr(mime, '__ne__', myneq)
 		odict.__init__(self, l)
+"""
 
 # hot-patching MimeType class
 http_headers.MimeType.__ne__ = myneq
@@ -29,5 +30,5 @@ http_headers.MimeType.__ne__ = myneq
 
 head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
 head.setRawHeaders('accept',['text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json',])
-head.handler.updateParsers({'Accept':(http_headers.tokenize, http_headers.listParser(http_headers.parseAccept), mydict)})
+head.handler.updateParsers({'Accept':(http_headers.tokenize, http_headers.listParser(http_headers.parseAccept), odict)})
 print head._toParsed('accept')
