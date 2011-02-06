@@ -20,6 +20,11 @@ __license__ = """
 """
 
 import sys, os, os.path, re, sqlite3, inspect, traceback, types
+# hotpatching inspect.isclass. see
+# http://stackoverflow.com/questions/4081819/why-does-python-inspect-isclass-think-an-instance-is-a-class
+if sys.version_info < (2, 7):
+	inspect.isclass = lambda obj: isinstance(obj, (type, types.ClassType))
+
 from odict                import odict
 
 from twisted.web.resource import Resource
@@ -81,8 +86,11 @@ class Plugin(Object):
 
 			# compile regex url
 			def argmatch(m):
-				return '(?P<%s>[^/]*)' % m.group(1)
-			_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)\}', argmatch, url)
+				return '(?P<%s>%s)' % (m.group(1), '[^/]*' if m.group(2) is None else
+						m.group(2))
+			_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)(?::((?:[^{}]+|{\d*,\d*})+))?\}', argmatch, url)
+			if _url != url:
+				print 'SIMPLEURL=', url, _url
 
 			if re.search(r'[([{.*+^$]', _url) != None:
 				# url is a regex
@@ -219,7 +227,9 @@ class Pluggable(object):
 				
 				NOTE: for the moment, we only search at level 1 (no recursion)
 			"""
+			print 'mod',mod
 			for (name, obj) in inspect.getmembers(mod):
+				print 'plop', obj, inspect.isclass(obj), dir(obj)
 				if inspect.isfunction(obj) and '__callable__' in dir(obj):
 					#netnode.putChild(name, FuncNode(obj))
 					# get original url if not set explicitly
@@ -286,18 +296,23 @@ class Pluggable(object):
 
 				print '~~~', name, obj.__dict__.get('__callable__', None)
 				if hasattr(obj, '__callable__'):
+					ctypes = []
 					opts = obj.__callable__
 
 					if 'content_type' in opts:
-						print '/!\ WARNING: contenttype cannot be redefined in class HTTP methods	(GET, POST, ...)'
+						print '/!\ WARNING: content_type cannot be redefined in class HTTP methods	(GET, POST, ...)'
 
+					print 'opts=', opts
 					if 'modifiers' in opts:
 						if not isinstance(opts['modifiers'], dict):
 							raise Exception("modifiers must be a dictionary")
 
 						for k, clb in opts['modifiers'].iteritems():
 							if k not in ctypes:
-								plugin.addurl(klass.url, k, klassnode)
+								if 'url' in opts:
+									plugin.addurl('%s%s' % (klass.url, opts['url']), k, klassnode)
+								else:
+									plugin.addurl(klass.url, k, klassnode)
 								ctypes.append(k)
 
 							#print inspect.isfunction(clb), inspect.getargspec(clb).args
@@ -305,6 +320,14 @@ class Pluggable(object):
 							if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
 								 clb.__name__ in klass.__dict__:
 								opts['modifiers'][k] = getattr(inst, clb.__name__)
+							#TODO: LoopbackSelf. more generic code
+							#from plugins.strawberry.link import LoopbackSelf
+							#print "loop>",clb, isinstance(clb, LoopbackSelf),	clb.__class__.__name__
+							#print "loop>",clb, clb.__class__.__name__, clb.__class__.__name__ == 'LoopbackSelf'
+							#if isinstance(clb, LoopbackSelf):
+							if clb.__class__.__name__ == '_LoopbackSelf':
+								clb = getattr(inst, clb.called)
+								opts['modifiers'][k] = clb
 
 						print '%s modifiers=' % name, opts['modifiers']
 

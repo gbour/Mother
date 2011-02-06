@@ -89,7 +89,7 @@ def query_builder(method, func, modifiers={}, instance=None):
 
 		value = ''; ret = None
 		if code == 200:
-			print argmap
+			print argmap, func
 			ret = func(**argmap)
 			print "RET=", ret
 
@@ -139,9 +139,12 @@ def query_builder(method, func, modifiers={}, instance=None):
 
 
 		request.setResponseCode(code, msg)
-		if content_type in modifiers:
-			print "FOUND A MODIFIER:", content_type, modifiers[content_type]
-			value = modifiers[content_type](value)
+		print 'mods=', modifiers, dir(request)
+		if request.raw_content_type in modifiers:
+			print "FOUND A MODIFIER:", request.raw_content_type, modifiers[request.raw_content_type]
+			value = modifiers[request.raw_content_type](value)
+			if isinstance(value, template.Template):
+				value = appcontext.render(value)
 
 		#if content_type == CONTENTTYPE_JSON:
 		#	value = cjson.encode(value)
@@ -266,7 +269,19 @@ class PluginNode(Resource):
 
 		print 'uri=', uri
 		from twisted.web2 import http_headers
+
+		# hot-patching web2.http_headers.MimeType
+		def mime_neq(self, other):
+			if not isinstance(other, http_headers.MimeType): return NotImplemented
+
+			return not (self.mediaType == other.mediaType and
+				self.mediaSubtype == other.mediaSubtype and
+				self.params == other.params)
+		http_headers.MimeType.__ne__ = mime_neq
+
 		head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
+		from odict import odict
+		head.handler.updateParsers({'Accept': (http_headers.tokenize,http_headers.listParser(http_headers.parseAccept), odict)})
 		head.setRawHeaders('Accept', (request.getHeader('Accept'),))
 		accept = head.getHeader('Accept')
 		accept = sorted([(mime, prio) for mime, prio in accept.iteritems()], key=lambda	x: -x[1])
@@ -281,15 +296,18 @@ class PluginNode(Resource):
 				print ctype
 				if ctype in urls:
 					print 'FOUND:', uri, ctype
-					return self.plugin.flat_urls[(uri, ctype)]
+					(request.raw_content_type, resource) = self.plugin.flat_urls.getWithBaseContentType((uri, ctype))
+					return resource
 
 			return NoResource('Not Found')
 
 		#TODO: really not optimal
+		print '* TESTING rx urls'
 		for raw, sub in self.plugin.regex_urls.iteritems():
-			print raw, sub
+			print '  .', raw, '--', sub
 			for ctype, weight in accept:
 				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
+				print '    - ctype=', ctype
 				if ctype in sub:
 					(rx, target) = self.plugin.regex_urls[(raw, ctype)]
 
@@ -300,7 +318,15 @@ class PluginNode(Resource):
 						# gamed groups a set as request args
 						request.args.update(m.groupdict())
 
-						print 'RETURNING', target, type(target)
+						print 'RETURNING', target, type(target), target.isLeaf,	request.postpath, request.args
+						#NOTE: need to empty request.postpath, cause if target is not leaf,
+						#twisted will continue until postpath is empty
+						if isinstance(target, ClassNode):
+							request.postpath=[]
+
+						print request.postpath
+						#TODO: must handle type generalization
+						request.raw_content_type = ctype
 						return target
 
 		"""

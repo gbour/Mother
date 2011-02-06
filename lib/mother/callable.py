@@ -39,8 +39,9 @@ from mother import modifiers
 #	return fnc
 
 def callback(method='GET', autobind=True, *args, **kwargs):
+	print 'CALLBACK =', method, args, kwargs
 	def deco(fnc):
-		print 'CALLBACK', fnc
+		print 'CALLBACK2=', fnc
 		# base url. May be overridden if 'name' is set
 		kwargs['_url']     = '/' + fnc.__name__ # not necessary. TO REMOVE
 		kwargs['method']   = method
@@ -59,7 +60,7 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 
 	# special case where invoking callback as keyword, not function 
 	# (@callback instead of @callback())
-#	print method, type(method)
+	print method, type(method)
 	if isinstance(method, types.FunctionType):
 		fnc	 = method
 		method  = ['GET']
@@ -68,6 +69,7 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 	if isinstance(method, str):
 		method = (method,)
 
+	print 'ret', deco
 	return deco
 
 class CallableBuilder(type):
@@ -97,3 +99,22 @@ class Callable(object):
 
 #class CallableObject(Object, Callable):
 #	__metaclass__ = COBBuilder
+
+
+class _LoopbackSelf(object):
+	def __init__(self, called=None):
+		self.called = called
+
+	def __getattr__(self, name):
+		if self.called is None:
+			return _LoopbackSelf(name)
+
+		self.called += "." + name
+		return self
+
+	def __str__(self):
+		return "LoopbackSelf(%s)" % self.called
+
+	def __repr__(self):
+		return self.__str__()
+LoopbackSelf = _LoopbackSelf()
