@@ -95,3 +95,7 @@ RULES:
 
 EXTRA:
  . add support for css template sass a/o less
+
+MAKO:
+ . ${'a' if z in d.get('k',{})}
+ see http://www.makotemplates.org/trac/ticket/20
