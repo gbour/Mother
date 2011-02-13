@@ -18,7 +18,7 @@ __license__ = """
 	with this program; if not, write to the Free Software Foundation, Inc.,
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
-import inspect, types
+import inspect, types, re
 from urllib import quote_plus as qp
 
 from callable import Callable
@@ -33,7 +33,8 @@ def url(plug, target, postfix=None, **kwargs):
 
 		Return url as a string
 	"""
-	print 'URL=', target, dir(target) #, target.__module__
+	print 'URL=', target, dir(target), target.__dict__.get('__callable__', None) #, target.__module__
+	print plug
 
 	if inspect.ismodule(target):
 		return '/%s' % target.__name__.rsplit('.', 1)[0].replace('.','/')
@@ -78,7 +79,26 @@ def url(plug, target, postfix=None, **kwargs):
 		qstr = '&'.join(["%s=%s" % (qp(k), qp(unicode(kwargs[k]))) for k in kwargs])
 		uri += '?' + qstr
 
+	print 'URI=', uri
 	return(uri)
+
+def fromurl(url):
+	"""Return app/class/method/function pointed by an url
+
+		1. raise ValueError if url is external
+		2. return None      if url does not match any callable app/class/...
+
+		else return target item
+	"""
+	if re.find('[^\w/-+#]', url):
+		raise ValueError
+
+	target = None
+	for part in url.split('/'):
+		pass
+	#aaa/bb/cc/dd
+
+	return 
 
 class Redirect(object):
 	"""Redirect object"""
@@ -93,6 +113,9 @@ class HTTPCode(object):
 
 	def __init__(self, msg):
 		self.msg = msg
+
+	def __repr__(self):
+		return "%s(%s)" % (self.__class__.__name__, self.msg)
 
 for code in (200, 204, 400, 401, 403, 404, 409, 500):
 	exec "class HTTP_%d(HTTPCode): code = %d" % (code, code);

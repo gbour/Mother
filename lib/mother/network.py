@@ -26,7 +26,7 @@ from mother.callable        import Callable
 from mother                 import template, routing
 
 CONTENTTYPE_JSON = 'application/json'
-def query_builder(method, func, modifiers={}, instance=None):
+def query_builder(method, func, modifiers={}, pre={}, instance=None):
 	(ARGS, VAARGS, KWARGS, DFTS) = inspect.getargspec(func)
 
 	if DFTS:
@@ -79,9 +79,9 @@ def query_builder(method, func, modifiers={}, instance=None):
 				break
 
 		## GET Application context
-		print func.__module__.split('.', 1)
+		#print func.__module__.split('.', 1)
 		appcontext = sys.modules[func.__module__.split('.',1)[0]].CONTEXT
-		print "AppContext=", appcontext
+		#print "AppContext=", appcontext
 
 		#TODO: this is not correct, has it doesn't work when we have simultaneous	requests
 		# !! FOR TESTS ONLY !!
@@ -89,9 +89,18 @@ def query_builder(method, func, modifiers={}, instance=None):
 
 		value = ''; ret = None
 		if code == 200:
-			print argmap, func
-			ret = func(**argmap)
-			print "RET=", ret
+			#print argmap, func
+			argmap['__referer__'] = request.getHeader('referer')
+
+			_func = func
+			if request.raw_content_type in modifiers:
+				argmap['__callback__'] = func
+				_func = modifiers[request.raw_content_type]
+
+			print 'BEF CALL', request.uri, _func, argmap, request.getAllHeaders()
+			ret = _func(**argmap)
+			#print "RET=", ret
+
 
 			if   isinstance(ret, template.Template):
 				value = appcontext.render(ret)
@@ -139,18 +148,12 @@ def query_builder(method, func, modifiers={}, instance=None):
 
 
 		request.setResponseCode(code, msg)
-		print 'mods=', modifiers, dir(request)
-		if request.raw_content_type in modifiers:
-			print "FOUND A MODIFIER:", request.raw_content_type, modifiers[request.raw_content_type]
-			value = modifiers[request.raw_content_type](value)
-			if isinstance(value, template.Template):
-				value = appcontext.render(value)
 
 		#if content_type == CONTENTTYPE_JSON:
 		#	value = cjson.encode(value)
 		#else:
 		value = str(value)
-		print code, value
+		#print code, value
 		return value
 	 
 	return pre_QUERY
@@ -171,9 +174,10 @@ class ClassNode(Resource):
 				modifiers = getattr(inst, method).__dict__.get('__callable__', dict()).get('modifiers', dict())
 				modifiers.update(inst.__modifiers__)
 				print "MODIFIERS", method, "=", modifiers
+				pre = getattr(inst, method).__dict__.get('__callable__', dict()).get('pre', dict())
 
 				setattr(self, 'render_%s' % method, query_builder(method, getattr(inst,
-					method), modifiers, instance=inst))
+					method), modifiers, pre, instance=inst))
 
 
 	def auth(self):
@@ -245,6 +249,7 @@ class PluginNode(Resource):
 			for ctype, weight in accept:
 				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
 				if ctype in urls:
+					request.raw_content_type = ctype
 					return self.plugin.flat_urls[('/', ctype)].render(request)
 
 		return Resource.render(self, request)
@@ -324,9 +329,11 @@ class PluginNode(Resource):
 						if isinstance(target, ClassNode):
 							request.postpath=[]
 
-						print request.postpath
 						#TODO: must handle type generalization
-						request.raw_content_type = ctype
+						mtype = self.plugin.regex_urls.getMatchContentType(raw, ctype)
+						print request.postpath, ',mtype=', mtype
+						#request.raw_content_type = ctype
+						request.raw_content_type = mtype
 						return target
 
 		"""

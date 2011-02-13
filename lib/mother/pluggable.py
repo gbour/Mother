@@ -274,6 +274,7 @@ class Pluggable(object):
 				plugin.addurl(klass.url, klass.__content_type__, klassnode)
 				ctypes.append(klass.__content_type__)
 
+				"""
 				for mod, clb in klass.__modifiers__.iteritems():
 					# bounding unbound method
 					if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
@@ -281,7 +282,8 @@ class Pluggable(object):
 							inst.__modifiers__[mod] = getattr(inst, clb.__name__)
 					plugin.addurl(klass.url, mod, klassnode)
 					ctypes.append(mod)
-	
+				"""
+
 		# if we enumerate class members, we get unbound methods
 		# whereas when we enumarate instance members, we get bounded (ie callable) methods
 		for (name, obj) in inspect.getmembers(inst):
@@ -308,6 +310,7 @@ class Pluggable(object):
 							raise Exception("modifiers must be a dictionary")
 
 						for k, clb in opts['modifiers'].iteritems():
+							print '__mm', k, k in ctypes
 							if k not in ctypes:
 								if 'url' in opts:
 									plugin.addurl('%s%s' % (klass.url, opts['url']), k, klassnode)
@@ -349,6 +352,18 @@ class Pluggable(object):
 				url = klass.url + url
 			plugin.addurl(url, obj.__callable__['content_type'], fncnode)
 
+		# class base modifiers have low priority over methods specific modifiers
+		if isinstance(inst, Callable) and klass.url is not None:
+			for mod, clb in klass.__modifiers__.iteritems():
+				# bounding unbound method
+				if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
+					clb.__name__ in klass.__dict__:
+						inst.__modifiers__[mod] = getattr(inst, clb.__name__)
+
+				print "%% ADD KLASS MODIFIED=", klass.url, mod
+				plugin.addurl(klass.url, mod, klassnode)
+				ctypes.append(mod)
+
 	def classinstance(self, klass):
 		if klass not in self.instances:
 			#print klass.__name__, "new instance"; issubclass(klass, Callable)
@@ -365,10 +380,15 @@ class Pluggable(object):
 					klass.__name__))
 			##
 
+			print klass.__name__, self.context
 			inst = eval("%s.%s(%s)" % (klass.__module__, klass.__name__, 
-				'self.context'	if issubclass(klass, Callable) else ''))
+				'context=self.context'	if issubclass(klass, Callable) else ''))
 
 			self.instances[klass] = inst
+			try:
+				print "&&& ", inst.GET.__callable__
+			except:
+				pass
 
 		return self.instances[klass]
 

@@ -20,6 +20,7 @@ __license__ = """
 """
 
 import sys, inspect, types
+from odict import odict
 from tentacles.table import Object, MetaObject
 
 from mother import modifiers
@@ -39,7 +40,7 @@ from mother import modifiers
 #	return fnc
 
 def callback(method='GET', autobind=True, *args, **kwargs):
-	print 'CALLBACK =', method, args, kwargs
+	#print 'CALLBACK =', method, args, kwargs
 	def deco(fnc):
 		print 'CALLBACK2=', fnc
 		# base url. May be overridden if 'name' is set
@@ -47,11 +48,15 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 		kwargs['method']   = method
 		kwargs['autobind'] = autobind #???
 
+		if 'modifiers' in kwargs and not isinstance(kwargs['modifiers'], odict):
+			kwargs['modifiers'] = odict(kwargs['modifiers'])
+
 		# default content_type is 'text/html'
 		if 'content_type' not in kwargs:
 			kwargs['content_type'] = ('text/html')
 
 		fnc.__dict__['__callable__'] = kwargs
+		print '  /', fnc.__dict__['__callable__']
 		#fnc.__dict__['__callable__'] = {
 		#	'name': kwargs.get('name', fnc.__name__), 
 		#	'method': method
@@ -89,7 +94,7 @@ class Callable(object):
 	#	__metaclass__ = CallableBuilder
 	
 	#__content_type__ = 'application/json'
-	__content_type__ = 'python/object'
+	__content_type__ = 'internal/python'
 	__modifiers__    = {'application/json': modifiers.json}
 
 #class COBBuilder(MetaObject, CallableBuilder):
