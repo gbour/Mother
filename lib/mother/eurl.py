@@ -41,12 +41,14 @@ class eURL(dict):
 			items   = subdict.setdefault(key[1], list((None,)))
 		items[0] = value
 
+		self.__privlen__ += 1
+		if key[1].startswith('internal/'):
+			return
+		
 		for _ctype in ('%s/*' % key[1].split('/',1)[0], '*/*'):
 			items = subdict.setdefault(_ctype, list((None,)))
 			if items[0] != value:
 				items.append((key[1], value))
-
-		self.__privlen__ += 1
 
 
 	def getWithBaseContentType(self, key):
@@ -81,6 +83,10 @@ class eURL(dict):
 		if items[0] is None:
 			raise KeyError(key[1])
 
+		self.__privlen__ -= 1
+		if key[1].startswith('internal/'):
+			return
+
 		#TODO: flawless: the same value could have be set with another content-type
 		# but works as a 1st approach
 		for _ctype in ('%s/*' % key[1].split('/',1)[0], '*/*'):
@@ -99,8 +105,6 @@ class eURL(dict):
 				dict.__delitem__(self, key[0])
 		else:
 			items[0] = None
-
-		self.__privlen__ -= 1
 
 
 	def __contains__(self, key):
@@ -160,6 +164,35 @@ class eURL(dict):
 		for _ctype in (ctype, '%s/*' % ctype.split('/',1)[0], '*/*'):			
 			if _ctype in subdict:
 				return _ctype
+		
+		return None
+
+	def getMatchContentType(self, url, ctype):
+		"""
+			>>> urlDict = eUrl()
+			>>> urlDict[('/foo', 'text/plain')] = 'MyResource'
+
+			>>> print urlDict.getContentType('/foo', 'text/plain')
+			text/plain
+
+			>>> print urlDict.getContentType('/foo', 'text/html')
+			text/plain
+
+			>>> print urlDict.getContentType('/foo', 'application/json')
+			text/plain
+
+			>>> print urlDict.getContentType('/bar', 'text/plain')
+			None
+		"""
+		subdict = dict.get(self, url, None)
+
+		if subdict is None:
+			return None
+
+		for _ctype in (ctype, '%s/*' % ctype.split('/',1)[0], '*/*'):			
+			if _ctype in subdict:
+				data = subdict[_ctype]
+				return _ctype if data[0] is not None else data[1][0]
 		
 		return None
 
