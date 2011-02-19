@@ -229,7 +229,9 @@ class Pluggable(object):
 			"""
 			print 'mod',mod
 			for (name, obj) in inspect.getmembers(mod):
-				print 'plop', obj, inspect.isclass(obj), dir(obj)
+				if name != '__builtins__':
+					print 'plop', name, obj, inspect.isclass(obj)
+
 				if inspect.isfunction(obj) and '__callable__' in dir(obj):
 					#netnode.putChild(name, FuncNode(obj))
 					# get original url if not set explicitly
@@ -346,11 +348,30 @@ class Pluggable(object):
 				obj.__callable__['url'] = obj.__callable__['_url']
 			url = obj.__callable__['url']
 
-			print 'UU', url, klass.url
+			print 'UU', url, klass.url, obj.__callable__['content_type']
 			if klass.url is not None:
 				#TODO: if url is a rx, it is more complex
 				url = klass.url + url
 			plugin.addurl(url, obj.__callable__['content_type'], fncnode)
+
+			# non special class methods modifiers
+			if 'modifiers' in obj.__callable__:
+				opts = obj.__callable__['modifiers']
+
+				for k, clb in opts.iteritems():
+					plugin.addurl('%s%s' % (klass.url, obj.__callable__.get('url','')), k, fncnode)
+
+					# bounding unbound method
+					if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
+						 clb.__name__ in klass.__dict__:
+						opts[k] = getattr(inst, clb.__name__)
+
+					#TODO: LoopbackSelf. more generic code
+					if clb.__class__.__name__ == '_LoopbackSelf':
+						opts[k] = getattr(inst, clb.called)
+
+				print '  . %s modifiers=' % url, opts
+
 
 		# class base modifiers have low priority over methods specific modifiers
 		if isinstance(inst, Callable) and klass.url is not None:
