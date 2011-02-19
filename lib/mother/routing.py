@@ -65,7 +65,7 @@ def url(plug, target, postfix=None, **kwargs):
 	if hasattr(target, 'im_class'):
 		uri += target.im_class.url
 
-	uri += target.__callable__['url']
+	uri += str(target.__callable__['url'])
 	if postfix is not None:		
 		#print 'postfix=', postfix
 		uri += '/'
@@ -107,7 +107,12 @@ class Redirect(object):
 		self.to   = to
 		self.url  = to if isinstance(to, types.StringTypes) else url(to)
 
+class MetaHTTPCode(type):
+	def __str__(cls):
+		return '/' + str(cls.code)
+
 class HTTPCode(object):
+	__metaclass__ = MetaHTTPCode
 	code = -1
 	msg  = None
 
@@ -116,6 +121,7 @@ class HTTPCode(object):
 
 	def __repr__(self):
 		return "%s(%s)" % (self.__class__.__name__, self.msg)
+
 
 for code in (200, 204, 400, 401, 403, 404, 409, 500):
 	exec "class HTTP_%d(HTTPCode): code = %d" % (code, code);
