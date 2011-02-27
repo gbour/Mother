@@ -2,21 +2,19 @@
 __version__ = "$Revision$ $Date$"
 __author__  = "Guillaume Bour <guillaume@bour.cc>"
 __license__ = """
-	Copyright (C) 2010, Guillaume Bour <guillaume@bour.cc>
+	Copyright (C) 2010-2011, Guillaume Bour <guillaume@bour.cc>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, version 3.
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+	GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU General Public License along
-	with this program; if not, write to the Free Software Foundation, Inc.,
-	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import sys, inspect, types
@@ -25,24 +23,8 @@ from tentacles.table import Object, MetaObject
 
 from mother import modifiers
 
-#def callback(fnc):
-#	print "callback(%s)" % fnc.__name__
-#	fnc.__dict__['__callable__'] = fnc.__name__
-
-#	# we get root module
-#	modname = fnc.func_globals['__name__'].split('.',1)[0]
-#	module  = sys.modules[modname]
-
-#	if '__callbacks__' not in dir(module):
-#		module.__callbacks__ = {}
-#	module.__callbacks__[fnc.__name__] = True
-
-#	return fnc
-
 def callback(method='GET', autobind=True, *args, **kwargs):
-	#print 'CALLBACK =', method, args, kwargs
 	def deco(fnc):
-		print 'CALLBACK2=', fnc
 		# base url. May be overridden if 'name' is set
 		kwargs['_url']     = '/' + fnc.__name__ # not necessary. TO REMOVE
 		kwargs['method']   = method
@@ -56,7 +38,6 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 			kwargs['content_type'] = ('text/html')
 
 		fnc.__dict__['__callable__'] = kwargs
-		print '  /', fnc.__dict__['__callable__']
 		#fnc.__dict__['__callable__'] = {
 		#	'name': kwargs.get('name', fnc.__name__), 
 		#	'method': method
@@ -65,7 +46,6 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 
 	# special case where invoking callback as keyword, not function 
 	# (@callback instead of @callback())
-	print method, type(method)
 	if isinstance(method, types.FunctionType):
 		fnc	 = method
 		method  = ['GET']
@@ -74,12 +54,11 @@ def callback(method='GET', autobind=True, *args, **kwargs):
 	if isinstance(method, str):
 		method = (method,)
 
-	print 'ret', deco
 	return deco
+
 
 class CallableBuilder(type):
 	def __new__(cls, name, bases, dct):
-		print "CallableINIT", name
 		if not 'url' in dct:
 			dct['url'] = '/' + name.lower()
 		elif dct['url'] is not None and not dct['url'].startswith('/'):
@@ -123,3 +102,4 @@ class _LoopbackSelf(object):
 	def __repr__(self):
 		return self.__str__()
 LoopbackSelf = _LoopbackSelf()
+

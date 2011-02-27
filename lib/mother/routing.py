@@ -2,21 +2,19 @@
 __version__ = "$Revision$ $Date$"
 __author__  = "Guillaume Bour <guillaume@bour.cc>"
 __license__ = """
-	Copyright (C) 2010, Guillaume Bour <guillaume@bour.cc>
+	Copyright (C) 2010-2011, Guillaume Bour <guillaume@bour.cc>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, version 3.
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+	GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU General Public License along
-	with this program; if not, write to the Free Software Foundation, Inc.,
-	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import inspect, types, re, urllib
 from urllib import quote_plus as qp
@@ -33,9 +31,6 @@ def url(plug, target, postfix=None, **kwargs):
 
 		Return url as a string
 	"""
-	print 'URL=', target, dir(target), target.__dict__.get('__callable__', None) #, target.__module__
-	print plug, kwargs
-
 	if inspect.ismodule(target):
 		return '/%s' % target.__name__.rsplit('.', 1)[0].replace('.','/')
 
@@ -55,7 +50,6 @@ def url(plug, target, postfix=None, **kwargs):
 
 	# bounding method
 	#NOTE: suboptimal (cloned from pluggable.py)
-	#print 'url for', target, dir(target), target.__callable__
 	elif hasattr(target, 'im_self') and target.im_self is None:
 		target = plug.boundmethod(target)
 
@@ -79,7 +73,6 @@ def url(plug, target, postfix=None, **kwargs):
 	uri += re.sub("\{.*?\}", rxmap, target_part)
 
 	if postfix is not None:		
-		#print 'postfix=', postfix
 		uri += '/'
 		if isinstance(postfix, list) or isinstance(postfix, tuple):
 			uri += '/'.join(urllib.quote(postfix))
@@ -94,13 +87,11 @@ def url(plug, target, postfix=None, **kwargs):
 		return "%s=%s" % (key, qp(unicode(value)))
 
 	if len(kwargs) > 0:
-		print 'kwargs=', kwargs
-		#qstr = '&'.join(["%s=%s" % (qp(k), qp(unicode(kwargs[k]))) for k in kwargs])
 		qstr = '&'.join([mergeargs(k, v) for k,v in kwargs.iteritems()])
 		uri += '?' + qstr
 
-	print 'URI=', uri
 	return(uri)
+
 
 def fromurl(url):
 	"""Return app/class/method/function pointed by an url
@@ -120,12 +111,14 @@ def fromurl(url):
 
 	return 
 
+
 class Redirect(object):
 	"""Redirect object"""
 	def __init__(self, to, code=301):
 		self.code = code
 		self.to   = to
 		self.url  = to if isinstance(to, types.StringTypes) else url(to)
+
 
 class MetaHTTPCode(type):
 	def __str__(cls):
@@ -163,11 +156,13 @@ class HTTP_401(HTTPCode):
 class ActionURL(object):
 	pass
 
+
 class LOGIN(ActionURL):
 	url = '/login'
 
 	def __init__(self, url):
 		self.url = url
+
 
 class LOGOUT(ActionURL):
 	url = '/logout'

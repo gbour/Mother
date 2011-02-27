@@ -1,4 +1,21 @@
 # -*- coding: utf8 -*-
+__version__ = "$Revision$ $Date$"
+__author__  = "Guillaume Bour <guillaume@bour.cc>"
+__license__ = """
+	Copyright (C) 2010-2011, Guillaume Bour <guillaume@bour.cc>
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, version 3.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
+
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
 import sys, os, os.path, inspect
 from twisted.web     import static
@@ -14,7 +31,6 @@ class Static(static.File):
 	  		kwargs
 		"""
 		basedir =	os.path.dirname(inspect.getframeinfo(inspect.currentframe().f_back)[0])
-		#print '>>>', path, args, kwargs
 		name = None
 		if 'name' in kwargs:
 			name = kwargs['name']; del kwargs['name']
@@ -68,7 +84,6 @@ class MakoRenderEngine(RenderEngine):
 		_tmpl = self.engine.get_template(tmpl.filename)
 		args = self.tmpl_default_args.copy()
 		args.update(tmpl.args)
-		print 'args=', args
 
 		return _tmpl.render(**args)
 

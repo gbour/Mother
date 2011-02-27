@@ -2,21 +2,19 @@
 __version__ = "$Revision$ $Date$"
 __author__  = "Guillaume Bour <guillaume@bour.cc>"
 __license__ = """
-	Copyright (C) 2010, Guillaume Bour <guillaume@bour.cc>
+	Copyright (C) 2010-2011, Guillaume Bour <guillaume@bour.cc>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, version 3.
 
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+	GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU General Public License along
-	with this program; if not, write to the Free Software Foundation, Inc.,
-	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import sys, os, os.path, re, sqlite3, inspect, traceback, types
@@ -72,7 +70,6 @@ class Plugin(Object):
 		"""
 		#TODO: should raise exception/warning on duplicates url
 		store = self.flat_urls
-		print 'CTYPE=', content_type, url, resource
 		if not isinstance(content_type, (tuple, list)):
 			content_type = (content_type,)
 
@@ -89,8 +86,6 @@ class Plugin(Object):
 				return '(?P<%s>%s)' % (m.group(1), '[^/]*' if m.group(2) is None else
 						m.group(2))
 			_url = re.sub(r'\{(\w*[a-zA-Z-]+\w*)(?::((?:[^{}]+|{\d*,\d*})+))?\}', argmatch, url)
-			if _url != url:
-				print 'SIMPLEURL=', url, _url
 
 			if re.search(r'[([{.*+^$]', _url) != None:
 				# url is a regex
@@ -123,7 +118,6 @@ class Plugin(Object):
 	def objects(self):
 		objs = [o for (n, o) in inspect.getmembers(sys.modules[self.name]) if
 				inspect.isclass(o) and issubclass(o, Object) and o != Object]
-		#print "OBJS=", objs
 		return objs
 
 
@@ -144,7 +138,6 @@ class Pluggable(object):
 
 	def initialize(self, root):
 		plugins = filter(lambda x: x.active is True, Plugin)
-		print plugins
 
 		for plugin in plugins:
 			# try import
@@ -152,7 +145,6 @@ class Pluggable(object):
 				exec "import %s" % plugin.name in {}, {}
 			except ImportError, e:
 				print "/!\ Cannot import %s plugin:" % plugin.name, e
-			print "? plugin %s imported" % plugin.name
 			mod = sys.modules[plugin.name]
 
 			mod.CONTEXT = AppContext(mod)
@@ -176,7 +168,6 @@ class Pluggable(object):
 				mod.AUTHENTICATION = False
 
 			# load URL callbacks
-			#print "loop on URLS"
 			raw_urls = mod.__dict__.get('URLS', {})
 			for url, target in raw_urls.iteritems():
 				"""Looping on URLs
@@ -210,10 +201,7 @@ class Pluggable(object):
 						raise Exception("%s url cannot be redefined (is %s, try to set %s)" %\
 							(_target.__name__, _target.__callable__['url'], url))
 
-					#print 'callback=', target
-					print 'tt=', _target, _target.__callable__, url
 					_target.__callable__['url'] = url
-					print 'tt=', _target, _target.__callable__
 					plugin.addurl(url, _target.__callable__['content_type'], FuncNode(_target))
 
 
@@ -227,11 +215,7 @@ class Pluggable(object):
 				
 				NOTE: for the moment, we only search at level 1 (no recursion)
 			"""
-			print 'mod',mod
 			for (name, obj) in inspect.getmembers(mod):
-				if name != '__builtins__':
-					print 'plop', name, obj, inspect.isclass(obj)
-
 				if inspect.isfunction(obj) and '__callable__' in dir(obj):
 					#netnode.putChild(name, FuncNode(obj))
 					# get original url if not set explicitly
@@ -248,7 +232,6 @@ class Pluggable(object):
 				#TODO case submodule: load subclasses
 				# (I've already done this elsewere ?)
 
-			print "MY URLS="
 			import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
 			
 		# create all plugins storage backend
@@ -272,7 +255,6 @@ class Pluggable(object):
 			#netnode.putChild(inst.__class__.__name__.lower(), klassnode)
 			#netnode = klassnode
 			if klass.url is not None:
-				print "EEE", klass.url, klassnode, inst
 				plugin.addurl(klass.url, klass.__content_type__, klassnode)
 				ctypes.append(klass.__content_type__)
 
@@ -298,7 +280,6 @@ class Pluggable(object):
 				if not iscallable:
 					raise Exception("%s method name is forbidden outside callable classes" %	name)
 
-				print '~~~', name, obj.__dict__.get('__callable__', None)
 				if hasattr(obj, '__callable__'):
 					ctypes = []
 					opts = obj.__callable__
@@ -306,7 +287,6 @@ class Pluggable(object):
 					if 'content_type' in opts:
 						print '/!\ WARNING: content_type cannot be redefined in class HTTP methods	(GET, POST, ...)'
 
-					print 'opts=', opts
 					if 'modifiers' in opts:
 						if not isinstance(opts['modifiers'], dict):
 							raise Exception("modifiers must be a dictionary")
@@ -320,7 +300,6 @@ class Pluggable(object):
 									plugin.addurl(klass.url, k, klassnode)
 								ctypes.append(k)
 
-							#print inspect.isfunction(clb), inspect.getargspec(clb).args
 							# bounding unbound method
 							if inspect.isfunction(clb) and len(inspect.getargspec(clb).args) > 1 and\
 								 clb.__name__ in klass.__dict__:
@@ -334,8 +313,6 @@ class Pluggable(object):
 								clb = getattr(inst, clb.called)
 								opts['modifiers'][k] = clb
 
-						print '%s modifiers=' % name, opts['modifiers']
-
 				continue
 
 			if not hasattr(obj, '__callable__'):
@@ -348,7 +325,6 @@ class Pluggable(object):
 				obj.__callable__['url'] = obj.__callable__['_url']
 			url = obj.__callable__['url']
 
-			print 'UU', url, klass.url, obj.__callable__['content_type']
 			if klass.url is not None:
 				#TODO: if url is a rx, it is more complex
 				url = klass.url + url
@@ -370,9 +346,6 @@ class Pluggable(object):
 					if clb.__class__.__name__ == '_LoopbackSelf':
 						opts[k] = getattr(inst, clb.called)
 
-				print '  . %s modifiers=' % url, opts
-
-
 		# class base modifiers have low priority over methods specific modifiers
 		if isinstance(inst, Callable) and klass.url is not None:
 			for mod, clb in klass.__modifiers__.iteritems():
@@ -381,7 +354,6 @@ class Pluggable(object):
 					clb.__name__ in klass.__dict__:
 						inst.__modifiers__[mod] = getattr(inst, clb.__name__)
 
-				print "%% ADD KLASS MODIFIED=", klass.url, mod
 				plugin.addurl(klass.url, mod, klassnode)
 				ctypes.append(mod)
 
@@ -399,17 +371,11 @@ class Pluggable(object):
 			elif klass.url is not None and not klass.url.startswith('/'):
 				raise Exception("Invalid %s as %s class url: MUST start with '/'" % (klass.url,
 					klass.__name__))
-			##
 
-			print klass.__name__, self.context
 			inst = eval("%s.%s(%s)" % (klass.__module__, klass.__name__, 
 				'context=self.context'	if issubclass(klass, Callable) else ''))
 
 			self.instances[klass] = inst
-			try:
-				print "&&& ", inst.GET.__callable__
-			except:
-				pass
 
 		return self.instances[klass]
 
@@ -425,3 +391,4 @@ class Pluggable(object):
 
 	def list(self):
 		return list(map(lambda p: {'name': p.name, 'uuid': p.uuid, 'active': p.active}, Plugin))
+
