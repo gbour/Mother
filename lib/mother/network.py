@@ -116,22 +116,25 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			elif isinstance(ret, type) and issubclass(ret, routing.HTTPCode):
 				print "return", ret
 				request.setResponseCode(ret.code, None)
-				print appcontext.app.PLUGIN.flat_urls
-				ret = appcontext.app.PLUGIN.flat_urls.get(ret, None)
+				# SHOULD return TemplateNode
+				ret = appcontext.app.PLUGIN.flat_urls[(ret,'text/html')]#.get(ret, None)
+				print 'ret=', ret
 				#TODO: ret MAY be template, or static file
 				# we must handle all cases
 				value = ''
 				if ret is not None:
 					# we do the test with a template
-					value = appcontext.render(ret)
+					value = appcontext.render(ret.tmpl)
 				return value
 
 			elif isinstance(ret, routing.HTTPCode):
 				request.setResponseCode(ret.code, ret.msg)
+				import cjson
+				value = cjson.encode(ret.msg)
 				ret = appcontext.app.PLUGIN.flat_urls.get(ret, None)
 				#TODO: ret MAY be template, or static file
 				# we must handle all cases
-				value = ''
+				#value = ''
 				if ret is not None:
 					# we do the test with a template
 					value = appcontext.render(ret)

@@ -50,6 +50,7 @@ class MakoRenderEngine(RenderEngine):
 	def __init__(self, tmplsdir):
 		self.engine = TemplateLookup(
 			directories=tmplsdir,
+			filesystem_checks=True,
 			input_encoding='utf-8',
 			output_encoding='utf-8',
 			encoding_errors='replace'

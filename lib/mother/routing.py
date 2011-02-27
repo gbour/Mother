@@ -18,7 +18,7 @@ __license__ = """
 	with this program; if not, write to the Free Software Foundation, Inc.,
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
-import inspect, types, re
+import inspect, types, re, urllib
 from urllib import quote_plus as qp
 
 from callable import Callable
@@ -34,7 +34,7 @@ def url(plug, target, postfix=None, **kwargs):
 		Return url as a string
 	"""
 	print 'URL=', target, dir(target), target.__dict__.get('__callable__', None) #, target.__module__
-	print plug
+	print plug, kwargs
 
 	if inspect.ismodule(target):
 		return '/%s' % target.__name__.rsplit('.', 1)[0].replace('.','/')
@@ -65,18 +65,38 @@ def url(plug, target, postfix=None, **kwargs):
 	if hasattr(target, 'im_class'):
 		uri += target.im_class.url
 
-	uri += str(target.__callable__['url'])
+	target_part = str(target.__callable__['url'])
+	# uri can contains regex: i.e /a/b/{plop} 
+	def rxmap(m):
+		key = m.group(0)[1:-1]
+		value = kwargs[key]
+		del kwargs[key]
+
+		if isinstance(value, (list, tuple)):
+				value = ''.join(value)
+		return value
+
+	uri += re.sub("\{.*?\}", rxmap, target_part)
+
 	if postfix is not None:		
 		#print 'postfix=', postfix
 		uri += '/'
 		if isinstance(postfix, list) or isinstance(postfix, tuple):
-			uri += '/'.join(postfix)
+			uri += '/'.join(urllib.quote(postfix))
 		else:
-			uri += '%s' % postfix
+			uri += urllib.quote('%s' % postfix)
+
+	def mergeargs(key, value):
+		key = qp(k)
+		if isinstance(value, (tuple, list)):
+			return '&'.join("%s=%s" % (key, qp(unicode(v))) for v in value)
+
+		return "%s=%s" % (key, qp(unicode(value)))
 
 	if len(kwargs) > 0:
 		print 'kwargs=', kwargs
-		qstr = '&'.join(["%s=%s" % (qp(k), qp(unicode(kwargs[k]))) for k in kwargs])
+		#qstr = '&'.join(["%s=%s" % (qp(k), qp(unicode(kwargs[k]))) for k in kwargs])
+		qstr = '&'.join([mergeargs(k, v) for k,v in kwargs.iteritems()])
 		uri += '?' + qstr
 
 	print 'URI=', uri
@@ -116,8 +136,10 @@ class HTTPCode(object):
 	code = -1
 	msg  = None
 
-	def __init__(self, msg):
-		self.msg = msg
+	def __init__(self, msg, content=None):
+		#TODO: remove msg (replaced by content)
+		self.msg     = msg
+		self.content = content
 
 	def __repr__(self):
 		return "%s(%s)" % (self.__class__.__name__, self.msg)
