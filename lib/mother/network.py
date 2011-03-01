@@ -51,15 +51,19 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 				argmap['content'] = cjson.decode(argmap['content'].read())
 			
 		# url params precedes on content json data
-		for arg in request.args.iterkeys():
-			#CHECK: arg is a list only when has multiple values
-			#NOTE: 
-			#  . url.path args are single items (string, integer)
-			#  . url.query are list (even if has only one value)
-			#  POST form args ??
-			argmap[arg] = request.args[arg] #[0]
-			if isinstance(argmap[arg], list) and len(argmap[arg]) == 1:
-				argmap[arg] = argmap[arg][0]
+		for key, val in request.args.iteritems():
+			#NOTE: args values are always a list (even with single value)
+			#      i.e: a=1&b=2&c=3&c=4 give {'a':[1], 'b':[2], 'c':[3,4]}
+			# 
+			#      rx-url mapped values are NOT list, but single string value
+			#       but code also work for string
+			if isinstance(val, (list, tuple)):
+				val= [v.decode('utf8','replace') for v in val]
+				if len(val) == 1:
+					val = val[0]
+			else:
+				val = val.decode('utf8','replace')
+			argmap[key] = val
 
 		if 'method' in ARGS:
 			argmap['method'] = method

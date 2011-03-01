@@ -71,20 +71,24 @@ def url(plug, target, postfix=None, **kwargs):
 		return value
 
 	uri += re.sub("\{.*?\}", rxmap, target_part)
+	def un_unicode(_str):
+		if isinstance(_str, unicode):
+			_str = _str.encode('utf8')
+		return str(_str)
 
 	if postfix is not None:		
 		uri += '/'
 		if isinstance(postfix, list) or isinstance(postfix, tuple):
-			uri += '/'.join(urllib.quote(postfix))
+			uri += '/'.join(urllib.quote(un_unicode(postfix)))
 		else:
-			uri += urllib.quote('%s' % postfix)
+			uri += urllib.quote(un_unicode(postfix))
 
 	def mergeargs(key, value):
 		key = qp(k)
 		if isinstance(value, (tuple, list)):
-			return '&'.join("%s=%s" % (key, qp(unicode(v))) for v in value)
+			return '&'.join("%s=%s" % (key, qp(un_unicode(v))) for v in value)
 
-		return "%s=%s" % (key, qp(unicode(value)))
+		return "%s=%s" % (key, qp(un_unicode(value)))
 
 	if len(kwargs) > 0:
 		qstr = '&'.join([mergeargs(k, v) for k,v in kwargs.iteritems()])
@@ -117,7 +121,13 @@ class Redirect(object):
 	def __init__(self, to, code=301):
 		self.code = code
 		self.to   = to
-		self.url  = to if isinstance(to, types.StringTypes) else url(to)
+
+		if isinstance(to, str):
+			self.url = to
+		elif isinstance(to, unicode):
+			self.url = to.encode('utf8')
+		else:
+			self.url = url(to)
 
 
 class MetaHTTPCode(type):
