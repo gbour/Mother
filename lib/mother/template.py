@@ -19,6 +19,7 @@ __license__ = """
 
 import sys, os, os.path, inspect
 from twisted.web     import static
+from mako            import exceptions
 from mako.lookup     import TemplateLookup
 
 from mother import routing
@@ -85,7 +86,12 @@ class MakoRenderEngine(RenderEngine):
 		args = self.tmpl_default_args.copy()
 		args.update(tmpl.args)
 
-		return _tmpl.render(**args)
+		try:
+			ret = _tmpl.render(**args)
+		except:
+			ret = exceptions.html_error_template().render()
+
+		return ret
 
 
 class Template(object):
