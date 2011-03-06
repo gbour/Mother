@@ -64,6 +64,7 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			else:
 				val = val.decode('utf8','replace')
 			argmap[key] = val
+			argmap[arg] = unicode(argmap[arg])
 
 		if 'method' in ARGS:
 			argmap['method'] = method
@@ -71,7 +72,7 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			argmap['request'] = request
 			
 		for arg in ARGS:
-			if arg not in argmap:
+			if not arg.startswith('__') and arg not in argmap:
 				code = 400
 				msg  = "missing %s parameter" % arg
 				break
@@ -92,6 +93,9 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 				argmap['__callback__'] = func
 				_func = modifiers[request.raw_content_type]
 
+			#DEBUG
+			argmap['__context__'] = request
+			print "calling handler:: argmap=", argmap, request.raw_content_type
 			ret = _func(**argmap)
 
 
@@ -106,15 +110,20 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 				return ''
 
 			elif isinstance(ret, type) and issubclass(ret, routing.HTTPCode):
-				request.setResponseCode(ret.code, None)
-				# SHOULD return TemplateNode
-				ret = appcontext.app.PLUGIN.flat_urls[(ret,'text/html')]#.get(ret, None)
-				#TODO: ret MAY be template, or static file
-				# we must handle all cases
+				request.setResponseCode(ret.code)
+
 				value = ''
-				if ret is not None:
-					# we do the test with a template
-					value = appcontext.render(ret.tmpl)
+				if request.raw_content_type == 'text/html':
+					# SHOULD return TemplateNode
+					ret = appcontext.app.PLUGIN.flat_urls[(ret,'text/html')]#.get(ret, None)
+					#TODO: ret MAY be template, or static file
+					# we must handle all cases
+					if ret is not None:
+						# we do the test with a template
+						value = appcontext.render(ret.tmpl)
+				else:
+					import cjson
+					value = cjson.encode(ret.msg)
 				return value
 
 			elif isinstance(ret, routing.HTTPCode):

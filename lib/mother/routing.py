@@ -148,7 +148,7 @@ class HTTPCode(object):
 		return "%s(%s)" % (self.__class__.__name__, self.msg)
 
 
-for code in (200, 204, 400, 401, 403, 404, 409, 500):
+for code in (200, 204, 400, 401, 403, 404, 409, 500, 501, 503):
 	exec "class HTTP_%d(HTTPCode): code = %d" % (code, code);
 
 

@@ -17,7 +17,13 @@ __license__ = """
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import cjson
+import routing
 
-def json(data):
-	return cjson.encode(data)
+def json(__callback__, **kwargs):
+	ret = __callback__(**kwargs)
+
+	if isinstance(ret, type) and issubclass(ret, routing.HTTPCode):
+		return ret
+
+	return cjson.encode(ret)
 
