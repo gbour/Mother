@@ -64,7 +64,6 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			else:
 				val = val.decode('utf8','replace')
 			argmap[key] = val
-			argmap[arg] = unicode(argmap[arg])
 
 		if 'method' in ARGS:
 			argmap['method'] = method
