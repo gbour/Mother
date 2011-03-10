@@ -24,6 +24,7 @@ import config
 from twisted.internet       import reactor
 from twisted.web            import server
 from twisted.web.resource   import Resource
+from twisted.application    import service, internet
 
 from tentacles              import *
 from mother.pluggable       import Pluggable, Plugin
@@ -47,7 +48,7 @@ class Mother(object):
 		if config.logfile != '-':
 			self.logger.addHandler(logging.FileHandler(config.logfile))
 		self.logger.info('Initializing mother')
-		
+
 		#.init database
 		self.db = Storage(config.database)
 
@@ -63,7 +64,7 @@ class Mother(object):
 		import functools
 		routing.url = functools.partial(routing.url, self.plug)
 		
-	def run(self):
+	def run(self, foreground=False):
 		root = Resource()
 
 		from mother.authentication import MotherRealm, AuthWrapper
@@ -81,20 +82,32 @@ class Mother(object):
 		from twisted.web.guard import DigestCredentialFactory
 		from twisted.web.guard import HTTPAuthSessionWrapper
 
-		#wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
 		wrapper = AuthWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
+		# ssl on
+		#wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
 		#wrapper.putChild(root)
 		##root    = wrapper
+		# /ssl
 
 		self.plug.initialize(root)
 
 		#. FINAL!!! start listening on the network
+		site = server.Site(root, logPath=self.config.accesslog)
 		self.logger.info('Mother start listening...')
-		reactor.listenTCP(self.config.port, server.Site(root, logPath=self.config.accesslog))
-		reactor.run()
+		if foreground:
+			reactor.listenTCP(self.config.port, site)
+			reactor.run()
+			return
+
+		application = service.Application('mother')
+		svc = internet.TCPServer(self.config.port, site) #, interface='*')
+		svc.setServiceParent(application)
+
+		return application
 		
 	def list_plugins(self):
 		return self.plug.list()
+
 
 class Context(object):
 	def __init__(self, mother):
