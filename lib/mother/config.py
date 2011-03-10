@@ -22,16 +22,20 @@ from simpleparse.dispatchprocessor import *
 
 declaration = r'''
 	root       := [ \t\n]*, statement*
-	statement  := nullline/keyval
-	nullline   := ts, '\n'
+	statement  := nullline/hash_comment/keyval
+	<nullline> := ts, '\n'
 	keyval     := ts,identifier,ts,':',ts,value,ts,'\n'
-	identifier := [a-zA-Z0-9_]+
-	value      := '\'', [a-zA-Z-_0-9/.]+, '\''
-	ts         := [ \t]*
+	identifier := [a-zA-Z],[a-zA-Z0-9_]*
+	value      := string_single_quote/string_double_quote/int/bool
+	bool       := 'True'/'False'
+	<ts>       := [ \t]*
 '''
 
 
 class ConfigProcessor(DispatchProcessor):
+	string_single_quote = strings.StringInterpreter()
+	int                 = numbers.IntInterpreter()
+
 	def __init__(self, target):
 		self.target = target
 
@@ -42,16 +46,22 @@ class ConfigProcessor(DispatchProcessor):
 		pass
 
 	def keyval(self, (tag, start, stop, subtags), buffer):
-		ident = dispatch(self, subtags[1], buffer)
-		value = dispatch(self, subtags[4], buffer)
+		ident = dispatch(self, subtags[0], buffer)
+		value = dispatch(self, subtags[1], buffer)
 		
 		setattr(self.target, ident, value)
 
 	def identifier(self, tag, buffer):
 		return getString(tag, buffer)
 
-	def value(self, tag, buffer):
-		return getString(tag, buffer)[1:-1]
+	def value(self, (tag, start, stop, subtags), buffer):
+		return dispatch(self, subtags[0], buffer)
+
+	def bool(self, tag, buffer):
+		return getString(tag, buffer) == 'True'
+
+	def hash_comment(self, *args):
+		pass
 
 class Config(object):
 	def __init__(self, filename):
