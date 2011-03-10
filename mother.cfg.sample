@@ -1,4 +1,0 @@
-
-plugdir         : '/var/lib/mother/plugins'
-database        : '/var/lib/mother/mother.db'
-

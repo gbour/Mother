@@ -1,0 +1,12 @@
+
+plugdir         : '/var/lib/mother/plugins'
+database        : '/var/lib/mother/mother.db'
+
+# TEMP
+port            : 9958
+loglevel        : 'debug'
+logfile         : '/tmp/.l.log'
+accesslog       : '/tmp/.a.log'
+plugdir         : '/home/gbour/PERSO/TMP/mother/trunk/plugins'
+database        : 'sqlite3:///home/gbour/PERSO/TMP/mother/trunk/mother.db'
+autoreload      : True
