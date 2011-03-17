@@ -3,17 +3,35 @@
 
 __version__ = "$Revision$ $Date$"
 
-import os.path
+import os, os.path
 
 from distutils.core                 import setup
 from distutils.command.install_data import install_data
 
 class _install_data(install_data):
+	excludes = ['.svn']
+
 	def run(self):
 		if not self.dry_run:
 			dir = os.path.join(self.root, 'var/lib/mother/apps/sample')
 			self.mkpath(dir)
-			self.copy_tree('plugins/sample', dir)
+			
+			excludes = list(self.excludes)
+			base     = 'plugins/sample'
+			for root, dirs, files in os.walk(base):
+				print root, dirs, files, excludes,'\n'
+				if root in excludes:
+					[excludes.append(os.path.join(root,d)) for d in dirs]; continue
+
+				for d in dirs:
+					if d in excludes:
+						excludes.append(os.path.join(root, d))
+					else:
+						self.mkpath(os.path.join(dir, d))
+
+				for f in files:
+					if f not in excludes:
+						self.copy_file(os.path.join(root, f), os.path.join(dir, root[len(base)+1:], f))
 
 		install_data.run(self)
 
@@ -29,11 +47,13 @@ setup(
 	classifiers  = [
 		'Development Status :: 3 - Alpha',
 		'Environment :: Console',
+		'Environment :: No Input/Output (Daemon)',
 		'Environment :: Web Environment',
 		'Intended Audience :: Developers',
 		'License :: OSI Approved :: GNU Affero General Public License v3',
 		'Natural Language :: English',
 		'Natural Language :: French'
+		'Programming Language :: Python',
 		'Programming Language :: Python :: 2.5',
 		'Programming Language :: Python :: 2.6',
 		'Programming Language :: Python :: 2.7',
@@ -42,6 +62,7 @@ setup(
 		'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
 		'Topic :: Internet :: WWW/HTTP :: Site Management',
 		'Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware',
+		'Topic :: Software Development',
 		'Topic :: Software Development :: Libraries :: Application Frameworks',
 		'Topic :: Software Development :: User Interfaces',
 	],
