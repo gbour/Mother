@@ -1,39 +1,85 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
+__version__ = "$Revision: 165 $ $Date: 2011-03-19 17:29:20 +0100 (sam. 19 mars 2011) $"
+__author__  = "Guillaume Bour <guillaume@bour.cc>"
+__license__ = """
+	Copyright (C) 2010-2011, Guillaume Bour <guillaume@bour.cc>
 
-__version__ = "$Revision$ $Date$"
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as
+	published by the Free Software Foundation, version 3.
 
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
+
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 import os, os.path
 
 from distutils.core                 import setup
-from distutils.command.install_data import install_data
+from distutils.command.install_lib  import install_lib
+from distutils.dist                 import Distribution
 
-class _install_data(install_data):
+class _Distribution(Distribution):
+	def __init__(self, *args, **kwargs):
+		# add new option for motherapps
+		self.motherapps = []
+
+		Distribution.__init__(self, *args, **kwargs)
+
+		# automatically install our install_lib version
+		if not 'install_lib' in self.cmdclass:
+			self.cmdclass['install_lib']= _install_lib
+
+
+class _install_lib(install_lib):
 	excludes = ['.svn']
+	dest     = 'var/lib/mother/apps'
+	_pyfiles = []
 
 	def run(self):
-		if not self.dry_run:
-			dir = os.path.join(self.root, 'var/lib/mother/apps/sample')
-			self.mkpath(dir)
-			
-			excludes = list(self.excludes)
-			base     = 'plugins/sample'
-			for root, dirs, files in os.walk(base):
-				print root, dirs, files, excludes,'\n'
-				if root in excludes:
-					[excludes.append(os.path.join(root,d)) for d in dirs]; continue
+		install_lib.run(self)
 
-				for d in dirs:
-					if d in excludes:
-						excludes.append(os.path.join(root, d))
-					else:
-						self.mkpath(os.path.join(dir, d))
+		if self.dry_run or len(self.distribution.motherapps) == 0:
+			return
 
-				for f in files:
-					if f not in excludes:
-						self.copy_file(os.path.join(root, f), os.path.join(dir, root[len(base)+1:], f))
+		for app in self.distribution.motherapps:
+			self._copy_tree(
+				os.path.join(*app.split('.')), 
+				os.path.join(self.get_finalized_command('bdist_dumb').bdist_dir, self.dest)
+			)
 
-		install_data.run(self)
+		self.byte_compile(self._pyfiles)
+
+	def _copy_tree(self, src, dst):
+		"""We replace Command.copy_tree() as we need to exclude .svn directories
+		"""	
+		_excl = list(self.excludes)
+
+		# we keep only the last dir of src path
+		dststart = len(src.split(os.sep))-1 
+		self.mkpath(os.path.join(dst, *src.split(os.sep)[dststart:]))
+
+		for root, dirs, files in os.walk(src):
+			if root in _excl:
+				[_excl.append(os.path.join(root,d)) for d in dirs]; continue
+
+			_dst = os.path.join(dst, *root.split(os.sep)[dststart:])
+			for d in dirs:
+				if d in _excl:
+					_excl.append(os.path.join(root, d))
+				else:
+					self.mkpath(os.path.join(_dst, d))
+
+			[self._copy_file(os.path.join(root, f), os.path.join(_dst, f)) for f in files if f not in _excl]
+
+	def _copy_file(self, src, dst):
+		install_lib.copy_file(self,src, dst)
+		if dst.endswith('.py'):
+			self._pyfiles.append(dst)
 
 
 setup(
@@ -84,6 +130,7 @@ it could be...blablabla""",
 		'odict', 'tentacles'
 	],
 
-	cmdclass    = {'install_data': _install_data}
+	distclass   = _Distribution,
+	motherapps  = ['plugins.sample'],
 )
 
