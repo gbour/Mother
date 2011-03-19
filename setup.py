@@ -52,7 +52,8 @@ setup(
 		'Intended Audience :: Developers',
 		'License :: OSI Approved :: GNU Affero General Public License v3',
 		'Natural Language :: English',
-		'Natural Language :: French'
+		'Natural Language :: French',
+		'Operating System :: OS Independent',
 		'Programming Language :: Python',
 		'Programming Language :: Python :: 2.5',
 		'Programming Language :: Python :: 2.6',
@@ -79,7 +80,7 @@ it could be...blablabla""",
 		('share/doc/mother', ['doc/mother.cfg.sample'])
 	],
 	requires    = [
-		'TwistedCore (>=10.1)', 'TwistedWeb (>= 10.1)', 'SimpleParse (>= 2.1.0)', 
+		'TwistedCore (>=10.1)', 'TwistedWeb (>= 10.1)', 'SimpleParse (>= 2.1.0)', 'Mako (>= 0.4.0)',
 		'odict', 'tentacles'
 	],
 
