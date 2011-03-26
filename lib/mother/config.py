@@ -16,19 +16,27 @@ __license__ = """
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-from simpleparse.common import numbers, strings, comments
+from simpleparse.common import numbers, strings#, comments
 from simpleparse.parser import Parser
 from simpleparse.dispatchprocessor import *
 
 declaration = r'''
-	root       := [ \t\n]*, statement*
-	statement  := nullline/hash_comment/keyval
-	<nullline> := ts, '\n'
-	keyval     := ts,identifier,ts,':',ts,value,ts,'\n'
+	root       := statements
+
+	statements := tsn, (statement, tsn)*
+	statement  := (comment/keyval)
+
+	<comment>  := '#', [a-zA-Z0-9 ]*
+	keyval     := identifier,ts,':',ts,value
+
 	identifier := [a-zA-Z],[a-zA-Z0-9_]*
-	value      := string_single_quote/string_double_quote/int/bool
-	bool       := 'True'/'False'
+	value      := string_single_quote/string_double_quote/int/bool/dict
+
+	bool       := 'True'/'False'	
+	dict       := tsn,'{',statements,'}'
+
 	<ts>       := [ \t]*
+	<tsn>      := [ \t\n]*
 '''
 
 
@@ -39,17 +47,17 @@ class ConfigProcessor(DispatchProcessor):
 	def __init__(self, target):
 		self.target = target
 
-	def statement(self, (tag, start, stop, subtags), buffer):
-		dispatchList(self, subtags, buffer)
+	def statements(self, (tag, start, stop, subtags), buffer):
+		return dict([stmt[0] for stmt in dispatchList(self, subtags, buffer) if len(stmt) > 0])
 
-	def nullline(self, tag, buffer):
-		pass
+	def statement(self, (tag, start, stop, subtags), buffer):
+		return dispatchList(self, subtags, buffer)
 
 	def keyval(self, (tag, start, stop, subtags), buffer):
 		ident = dispatch(self, subtags[0], buffer)
 		value = dispatch(self, subtags[1], buffer)
-		
-		setattr(self.target, ident, value)
+	
+		return (ident, value)
 
 	def identifier(self, tag, buffer):
 		return getString(tag, buffer)
@@ -60,8 +68,9 @@ class ConfigProcessor(DispatchProcessor):
 	def bool(self, tag, buffer):
 		return getString(tag, buffer) == 'True'
 
-	def hash_comment(self, *args):
-		pass
+	def dict(self, (tag, start, stop, subtags), buffer):
+		return dispatchList(self, subtags, buffer)[0]
+
 
 class Config(object):
 	def __init__(self, filename):
@@ -72,3 +81,6 @@ class Config(object):
 		success, tree, nextChar =  parser.parse(content, processor=ConfigProcessor(self))
 		if not success:
 			raise Exception
+
+		for k, v in tree[0].iteritems():
+			setattr(self, k, v)
