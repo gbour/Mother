@@ -34,6 +34,7 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 		del ARGS[0]
 		
 	def pre_QUERY(request):
+		print request.__dict__.keys()
 		code	= 200
 		msg	 = None
 		argmap  = {}
@@ -43,13 +44,6 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 		#TODO: we should check if content type match default content type or modifiers
 		# (case Callable classes)
 
-		#TODO: following bloc is not generic enough. What if we do HTTP POST? 
-		if method in ['PUT', 'POST']:
-			argmap['content'] = request.content
-
-			if content_type == CONTENTTYPE_JSON:
-				argmap['content'] = cjson.decode(argmap['content'].read())
-			
 		# url params precedes on content json data
 		for key, val in request.args.iteritems():
 			#NOTE: args values are always a list (even with single value)
@@ -64,6 +58,14 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			else:
 				val = val.decode('utf8','replace')
 			argmap[key] = val
+
+		#TODO: following bloc is not generic enough. What if we do HTTP POST? 
+		if method in ['PUT', 'POST']:
+			argmap['content'] = request.content
+
+			if content_type == CONTENTTYPE_JSON:
+				argmap['content'] = cjson.decode(argmap['content'].read())
+			
 
 		if 'method' in ARGS:
 			argmap['method'] = method
@@ -101,6 +103,10 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			if   isinstance(ret, template.Template):
 				value = appcontext.render(ret)
 				code  = 200
+			elif isinstance(ret, template.Static):
+				value = ret.render(request)
+				code  = 200
+
 			elif isinstance(ret, routing.Redirect):
 				#TODO: code is not correctly set
 				request.setResponseCode(ret.code)
