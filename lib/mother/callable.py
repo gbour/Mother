@@ -76,6 +76,9 @@ class Callable(object):
 	__content_type__ = 'internal/python'
 	__modifiers__    = {'application/json': modifiers.json}
 
+	def __init__(self, *args, **kwargs):
+		pass
+
 #class COBBuilder(MetaObject, CallableBuilder):
 #	def __new__(cls, name, bases, dct):
 #		print "COB::new", name
