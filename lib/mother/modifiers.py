@@ -24,7 +24,8 @@ def json(__callback__, **kwargs):
 	#NOTE: application fail to start with error "ImportError: cannot import name Callable"
 	#      when import is at file level
 	import routing
-	if isinstance(ret, type) and issubclass(ret, routing.HTTPCode):
+	if isinstance(ret, type) and issubclass(ret, routing.HTTPCode) or\
+		 isinstance(ret, routing.HTTPCode):
 		return ret
 
 	return cjson.encode(ret)
