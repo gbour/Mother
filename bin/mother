@@ -20,7 +20,6 @@ __license__ = """
 	with this program; if not, write to the Free Software Foundation, Inc.,
 	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA..
 """
-
 import sys, os, os.path, sqlite3, traceback
 from optparse import OptionParser
 
@@ -78,9 +77,12 @@ parser.add_option('--plugins'          , dest='plugins',
 	default=None,
 	help='list of plugins to activate')
 		
-parser.add_option('--plugins-list'     , dest='list',
+parser.add_option('--apps-list'        , dest='list',
 	action='store_true', default=False,
-	help='list available plugins')
+	help='list installed apps')
+parser.add_option('--apps-add'         , dest='add',
+	action="store", type="str", 
+	help='add new app', metavar='PATH')
 parser.add_option('--status'           , dest='status', 
 	action='store_true', default=False,
 	help='list available plugins')
@@ -117,8 +119,27 @@ except Exception, e:
 if options.list:
 	print "Plugins:"
 	for plug in mom.list_plugins():
-	    print " . %s" % plug
+	    print " . %12s [active=%d, path=%s]" % (plug['name'], plug['active'],	plug['path'])
 	sys.exit(0)
+
+if options.add is not None:
+	from mother.pluggable import Plugin
+
+	appdir, appname = [(os.path.dirname(path), os.path.basename(path)) for path in
+			(os.path.normpath(options.add),)][0]
+	try:
+		sys.path.append(appdir)
+
+		exec "import %s" % appname
+		app = sys.modules[appname]
+
+		p = Plugin(uuid=app.UUID, name=appname, active=True, path=appdir)
+		p.save()
+	except Exception, e:
+		print e; sys.exit(1)
+
+	sys.exit(0)
+
 
 
 #NOTE: we can't use autoreload with twistd. see http://twistedmatrix.com/trac/ticket/4072
