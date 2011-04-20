@@ -1,0 +1,4 @@
+
+include README.md AUTHORS LICENSE
+include plugins/__init__.py
+recursive-include plugins/sample *
