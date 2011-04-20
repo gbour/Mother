@@ -16,12 +16,12 @@ __license__ = """
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 import sys, inspect, types
-from odict import odict
-from tentacles.table import Object, MetaObject
+from   odict           import odict
+from   tentacles.table import Object, MetaObject
 
-from mother import modifiers
+from   mother          import modifiers
+
 
 def callback(method='GET', autobind=True, *args, **kwargs):
 	def deco(fnc):
@@ -65,6 +65,7 @@ class CallableBuilder(type):
 			raise Exception("url must start with '/'")
 
 		return type.__new__(cls, name, bases, dct)
+
 
 class Callable(object):
 	#BUG: when class inherit both from Object (db abstraction) and Callable,

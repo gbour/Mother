@@ -46,6 +46,9 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 
 		# url params precedes on content json data
 		for key, val in request.args.iteritems():
+			#TODO: if val is a file content ?? we should not attempt do modify it
+			#NEED A ARGTYPE
+
 			#NOTE: args values are always a list (even with single value)
 			#      i.e: a=1&b=2&c=3&c=4 give {'a':[1], 'b':[2], 'c':[3,4]}
 			# 
@@ -90,13 +93,14 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			argmap['__referer__'] = request.getHeader('referer')
 
 			_func = func
+			print request.raw_content_type, modifiers
 			if request.raw_content_type in modifiers:
 				argmap['__callback__'] = func
 				_func = modifiers[request.raw_content_type]
 
 			#DEBUG
 			argmap['__context__'] = request
-			print "calling handler:: argmap=", argmap, request.raw_content_type
+			#print "calling handler:: argmap=", argmap, request.raw_content_type
 			ret = _func(**argmap)
 
 
@@ -230,6 +234,7 @@ class TemplateNode(Resource):
 
 	def auth(self):
 		return True
+
 
 class PluginNode(Resource):
 	def __init__(self, plugin):

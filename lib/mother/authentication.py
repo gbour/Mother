@@ -36,12 +36,10 @@ class User(Object):
 
 	uid           = Integer(pk=True)
 	username      = String(unique=True, allow_none=False)
-	#password      = Password()
 	password      = String()
 
 	firstname     = String()
 	lastname      = String()
-	#email         = Email()
 	email         = String()
 
 	active        = Boolean(default=True)
@@ -49,8 +47,13 @@ class User(Object):
 	creation      = Datetime(default='now')
 	last_login    = Datetime()
 
-	#icon          = Image()
 	icon          = Binary()
+
+	#TODO
+	#password      = Password()
+	#email         = Email()
+	#icon          = Image()
+
 
 class Group(Object):
 	"""
@@ -59,6 +62,7 @@ class Group(Object):
 
 	gid           = Integer(pk=True)
 	name          = String(unique=True, allow_none=False)
+
 
 class Members(Object):
 	"""
@@ -73,6 +77,7 @@ class Members(Object):
 	app           = Reference(Plugin, allow_none=True)
 	
 	user          = Reference(User)
+
 
 class Acl(Object):
 	__stor_name__ = 'mother__appacl'
@@ -102,6 +107,7 @@ class PlopResource(Resource):
 	def render_GET(self, request):
 		return 'PLOP'
 
+
 class MotherRealm(object):
 	implements(IRealm)
 
@@ -115,6 +121,7 @@ class MotherRealm(object):
 				return (IResource, PlopResource(), lambda: None)
 			else:
 				return (IResource, self.res, lambda: None)
+
 
 class UnauthorizedResource(Resource):
 	isLeaf = True
@@ -140,9 +147,11 @@ from twisted.web.server import Session
 from twisted.python.components import registerAdapter
 from zope.interface import Interface, Attribute, implements
 
+
 class IMotherSession(Interface):
 	logged = Attribute("True if authenticated (logged)")
 	user   = Attribute("User logged")
+
 
 class MotherSession(object):
 	implements(IMotherSession)
@@ -164,6 +173,7 @@ class HTTPAuthResource(Resource):
 
 	def getChildWithDefault(self, path, request):
 		return self
+
 
 class AuthWrapper(Resource):
 	#TODO: use implements(IResource) instead

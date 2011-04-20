@@ -134,6 +134,7 @@ class MetaHTTPCode(type):
 	def __str__(cls):
 		return '/' + str(cls.code)
 
+
 class HTTPCode(object):
 	__metaclass__ = MetaHTTPCode
 	code = -1
