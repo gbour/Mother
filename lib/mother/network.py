@@ -34,7 +34,6 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 		del ARGS[0]
 		
 	def pre_QUERY(request):
-		print request.__dict__.keys()
 		code	= 200
 		msg	 = None
 		argmap  = {}
@@ -93,7 +92,6 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			argmap['__referer__'] = request.getHeader('referer')
 
 			_func = func
-			print request.raw_content_type, modifiers
 			if request.raw_content_type in modifiers:
 				argmap['__callback__'] = func
 				_func = modifiers[request.raw_content_type]
@@ -329,7 +327,6 @@ class PluginNode(Resource):
 			for ctype, weight in accept:
 				ctype = '%s/%s' % (ctype.mediaType, ctype.mediaSubtype)
 				if ctype in urls:
-					print 'RES=', self.plugin.flat_urls[(routing.HTTP_404, ctype)]
 					return self.plugin.flat_urls[(routing.HTTP_404, ctype)]
 
 

@@ -101,7 +101,6 @@ from twisted.web.resource import Resource
 """
 class PlopResource(Resource):
 	def getChild(self , path, request):
-		print 'plop::getchild=', path
 		return self
 
 	def render_GET(self, request):
@@ -115,7 +114,7 @@ class MotherRealm(object):
 		self.res = res
 
 	def requestAvatar(self, avatarId, mind, *ifaces):
-		print "request avatar:", avatarId, ifaces, avatarId == checkers.ANONYMOUS
+		#print "request avatar:", avatarId, ifaces, avatarId == checkers.ANONYMOUS
 		if IResource in ifaces:
 			if avatarId is checkers.ANONYMOUS:
 				return (IResource, PlopResource(), lambda: None)
@@ -133,9 +132,7 @@ class UnauthorizedResource(Resource):
 		ctype = request.getHeader('content-type')
 		request.setResponseCode(401)
 
-		print 'Zzzz', ctype
 		if ctype == 'text/html':
-			print 'yop'
 			return '<html><body><b>Unauthorized</b></body></html>'
 
 		return 'Unauthorized'
@@ -203,15 +200,12 @@ class AuthWrapper(Resource):
 		mod   = child.plugin.MODULE
 
 		# get Accept mime-types, by preference descendant order
-		print request.getHeader('Accept')
 		from twisted.web2 import http_headers
 		head = http_headers.Headers(handler=http_headers.DefaultHTTPHandler)
 		head.setRawHeaders('Accept', (request.getHeader('Accept'),))
 		accept = head.getHeader('Accept')
-		print accept
 
 		accept = sorted([(mime, prio) for mime, prio in accept.iteritems()], key=lambda	x: -x[1])
-		print 'Accept=', accept
 
 		# AUTH deactivated for application
 		if not mod.AUTHENTICATION:
@@ -221,7 +215,6 @@ class AuthWrapper(Resource):
 		login = child.getChild(routing.LOGIN, request)
 
 		# Does requested target require authentication
-		print path, request.postpath, request.prepath
 		path = request.postpath.pop(0)
 		request.prepath.append(path)
 
@@ -230,8 +223,6 @@ class AuthWrapper(Resource):
 		if isinstance(target, NoResource):
 			return target
 
-		if hasattr(target, 'func'):
-			print 'auth req=', target.func.__callable__.get('auth_required', True)
 		# auth required for this target ?
 		if hasattr(target, 'func') and not target.func.__callable__.get('auth_required', True):
 			return target
@@ -245,9 +236,8 @@ class AuthWrapper(Resource):
 		# we use HTTP authentication
 		http_auth = request.getHeader('authorization')
 		sess      = IMotherSession(request.getSession())
-		print 'SESS=', sess.logged, sess.user
 		if not http_auth and not sess.logged:
-			print 'No authenticated'
+			#print 'No authenticated'
 			#NOTE: this ressource MUST return a 404
 			return child.getChild(routing.LOGIN, request)
 
