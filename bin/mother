@@ -83,6 +83,9 @@ parser.add_option('--apps-list'        , dest='list',
 parser.add_option('--apps-add'         , dest='add',
 	action="store", type="str", 
 	help='add new app', metavar='PATH')
+parser.add_option('--apps-remove'      , dest='remove',
+	action="store", type="str", 
+	help='remove installed app', metavar='NAME|UUID')
 parser.add_option('--status'           , dest='status', 
 	action='store_true', default=False,
 	help='list available plugins')
@@ -135,11 +138,22 @@ if options.add is not None:
 
 		p = Plugin(uuid=app.UUID, name=appname, active=True, path=appdir)
 		p.save()
+		print " . App «%s» added. Please restart mother daemon" % p.name.encode('utf8')
 	except Exception, e:
 		print e; sys.exit(1)
 
 	sys.exit(0)
 
+if options.remove is not None:
+	from mother.pluggable import Plugin
+	from tentacles.queryset import filter
+
+	name = options.remove
+	#TODO: tentacles bug:  parenthesis priority is not translated into SQL
+	for p in filter(lambda p: p.active == True and (p.name == name or p.uuid == name), Plugin):
+		p.active = False; p.save()
+		print " . App «%s» deactivated. Please restart mother daemon" % p.name.encode('utf8')
+	sys.exit(0)
 
 
 #NOTE: we can't use autoreload with twistd. see http://twistedmatrix.com/trac/ticket/4072
