@@ -114,9 +114,22 @@ setup(
 		'Topic :: Software Development :: User Interfaces',
 	],
 
-	long_description = """Mother try to bring web applications development as simple as
-it could be...blablabla""",
-
+	long_description = """Mother is a framework made for fasten and easier web-applications developement:
+		. url rewriting
+		. multiprotocol (HTML, json, xml??)
+		. autoexposing tentacles objects
+		. arguments validation
+		. contents modifiers (py object to json, uppercase, etc)
+		. simple programmation
+		. work with apps 
+		. users/groups/acl managements
+		. dashboard (add/remove/disable apps)
+		. create/manage user/groups
+		. manage acls
+		. http/https
+		. authentication framework
+		. plugins (a app can be hooked):
+	""",
 
 	scripts     = ['bin/mother'],
 	package_dir = {'': 'lib'},
