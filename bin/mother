@@ -129,7 +129,7 @@ if options.add is not None:
 	from mother.pluggable import Plugin
 
 	appdir, appname = [(os.path.dirname(path), os.path.basename(path)) for path in
-			(os.path.normpath(options.add),)][0]
+			(os.path.abspath(options.add),)][0]
 	try:
 		sys.path.insert(0, appdir)
 		app = __import__(appname, globals(), locals(), [], -1)

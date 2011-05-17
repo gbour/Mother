@@ -44,7 +44,7 @@ class Plugin(Object):
 	## database fields
 	uuid	        = String(pk=True)
 	name	        = String()
-	#path          = String()
+	path          = String()
 	active        = Boolean(default=True)
 
 	def __init__(self, *args, **kwargs):
@@ -390,5 +390,5 @@ class Pluggable(object):
 
 
 	def list(self):
-		return list(map(lambda p: {'name': p.name, 'uuid': p.uuid, 'active': p.active}, Plugin))
+		return list(map(lambda p: {'name': p.name, 'uuid': p.uuid, 'active': p.active, 'path': p.path}, Plugin))
 
