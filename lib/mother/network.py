@@ -152,9 +152,10 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 			else:
 				(code, value) = (200, ret)
 
-		if ret == server.NOT_DONE_YET:
-			return ret
-
+		# server.NOT_DONE_YET == 1 == True
+		# deactivated for now as we don't handle correctly async mode
+		#if ret == server.NOT_DONE_YET:
+		#	return ret
 
 		request.setResponseCode(code, msg)
 
@@ -162,7 +163,6 @@ def query_builder(method, func, modifiers={}, pre={}, instance=None):
 		#	value = cjson.encode(value)
 		#else:
 		value = str(value)
-		#print code, value
 		return value
 	 
 	return pre_QUERY

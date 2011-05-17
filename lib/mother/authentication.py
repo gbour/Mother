@@ -20,7 +20,7 @@ __license__ = """
 
 from tentacles               import *
 from tentacles.fields        import *
-from mother.dbfields         import *
+#from mother.dbfields         import *
 from mother.pluggable        import Plugin
 from mother                  import routing
 
