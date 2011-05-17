@@ -131,10 +131,8 @@ if options.add is not None:
 	appdir, appname = [(os.path.dirname(path), os.path.basename(path)) for path in
 			(os.path.normpath(options.add),)][0]
 	try:
-		sys.path.append(appdir)
-
-		exec "import %s" % appname
-		app = sys.modules[appname]
+		sys.path.insert(0, appdir)
+		app = __import__(appname, globals(), locals(), [], -1)
 
 		p = Plugin(uuid=app.UUID, name=appname, active=True, path=appdir)
 		p.save()
