@@ -144,6 +144,6 @@ setup(
 	],
 
 	distclass   = _Distribution,
-	motherapps  = ['plugins.sample'],
+	motherapps  = ['apps.sample'],
 )
 
