@@ -26,7 +26,7 @@ declaration = r'''
 	statements := tsn, (statement, tsn)*
 	statement  := (comment/keyval)
 
-	<comment>  := '#', [a-zA-Z0-9 ]*
+	<comment>  := '#', -'\n'*
 	keyval     := identifier,ts,':',ts,value
 
 	identifier := [a-zA-Z],[a-zA-Z0-9_]*
@@ -56,7 +56,7 @@ class ConfigProcessor(DispatchProcessor):
 	def keyval(self, (tag, start, stop, subtags), buffer):
 		ident = dispatch(self, subtags[0], buffer)
 		value = dispatch(self, subtags[1], buffer)
-	
+
 		return (ident, value)
 
 	def identifier(self, tag, buffer):
