@@ -224,7 +224,7 @@ class TemplateNode(Resource):
 		appcontext = self.module.CONTEXT
 
 		#TODO: generic
-		request.setResponseCode(404)
+		request.setResponseCode(200)
 		return appcontext.render(self.tmpl)
 
 	def getChild(self, name, request):
