@@ -17,7 +17,6 @@ __license__ = """
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 import sys, sqlite3, traceback, logging
 import config
 
@@ -58,7 +57,7 @@ class Mother(object):
 		self.db.create()
 
 
-		self.plug = Pluggable(config.plugdir, self.db, Context(self))
+		self.plug = Pluggable(self.db, Context(self))
 
 		from mother import routing
 		import functools
@@ -86,7 +85,8 @@ class Mother(object):
 		# ssl on
 		#wrapper = HTTPAuthSessionWrapper(portal, [DigestCredentialFactory('md5', 'example.org')])
 		#wrapper.putChild(root)
-		##root    = wrapper
+		#root    = wrapper
+		# /ssl
 		# /ssl
 
 		self.plug.initialize(root)

@@ -33,9 +33,8 @@ from mother                 import Mother, autoreload, config
 # default settings values
 defaults = {
 	'conffile'      : '/etc/mother.cfg',
-	'plugdir'       : '/var/lib/mother/apps',
 	'database'      : '/var/lib/mother/mother.db',
-	'port'          : 9998,
+	'port'          : 8080,
 	'accesslog'     : '/var/log/mother/access.log',
 	'logfile'       : '/var/log/mother/mother.info',
 	'loglevel'      : 'error',
@@ -55,9 +54,6 @@ parser = OptionParser()
 parser.add_option('-c', '--config-file', dest='conffile',
 	default=defaults['conffile'],
 	help='configuration file')
-parser.add_option('-u', '--plugin-dir' , dest='plugdir',
-	default=defaults['plugdir'],
-	help='plugins directory')
 parser.add_option('-d', '--database'   , dest='database',
 	default=defaults['database'],
 	help='database URI')

@@ -16,7 +16,6 @@ __license__ = """
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 import sys, os, os.path, re, sqlite3, inspect, traceback, types
 # hotpatching inspect.isclass. see
 # http://stackoverflow.com/questions/4081819/why-does-python-inspect-isclass-think-an-instance-is-a-class
@@ -122,11 +121,7 @@ class Plugin(Object):
 
 
 class Pluggable(object):
-	def __init__(self, plugin_dir, db, context):
-		if not os.path.isdir(plugin_dir):
-			raise Exception("plugin directory %s not found" % plugin_dir)
-		sys.path.append(plugin_dir)
-
+	def __init__(self, db, context):
 		# listing plugins
 		self.db	 = db
 		self.db.create()
@@ -140,12 +135,11 @@ class Pluggable(object):
 		plugins = filter(lambda x: x.active is True, Plugin)
 
 		for plugin in plugins:
-			# try import
 			try:
-				exec "import %s" % plugin.name in {}, {}
+				sys.path.insert(0, plugin.path)
+				mod = __import__(plugin.name, globals(), locals(), [], -1)
 			except ImportError, e:
 				print "/!\ Cannot import %s plugin:" % plugin.name, e
-			mod = sys.modules[plugin.name]
 
 			mod.CONTEXT = AppContext(mod)
 			mod.PLUGIN  = plugin
@@ -232,8 +226,6 @@ class Pluggable(object):
 				#TODO case submodule: load subclasses
 				# (I've already done this elsewere ?)
 
-			import pprint; pprint.pprint(plugin.flat_urls); pprint.pprint(plugin.regex_urls)
-			
 		# create all plugins storage backend
 		self.db.create()
 
@@ -292,7 +284,6 @@ class Pluggable(object):
 							raise Exception("modifiers must be a dictionary")
 
 						for k, clb in opts['modifiers'].iteritems():
-							print '__mm', k, k in ctypes
 							if k not in ctypes:
 								if 'url' in opts:
 									plugin.addurl('%s%s' % (klass.url, opts['url']), k, klassnode)
