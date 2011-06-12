@@ -1,12 +1,14 @@
 
-plugdir         : '/var/lib/mother/plugins'
-database        : '/var/lib/mother/mother.db'
+# mother main database
+database        : 'sqlite3:/var/lib/mother/mother.db'
 
-# TEMP
-port            : 9958
+# port mother is listening to (http or https)
+port            : 8080
+# log level (accepted values: debug, info, warning, error, critical)
 loglevel        : 'debug'
-logfile         : '/tmp/.l.log'
-accesslog       : '/tmp/.a.log'
-plugdir         : '/home/gbour/PERSO/TMP/mother/trunk/plugins'
-database        : 'sqlite3:///home/gbour/PERSO/TMP/mother/trunk/mother.db'
+# logfile
+logfile         : '/var/log/mother/mother.info'
+# access log (apache common format)
+accesslog       : '/var/log/mother/access.log'
+# autoreload when source code change (for devel/debug only)
 autoreload      : True
