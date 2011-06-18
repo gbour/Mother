@@ -1,0 +1,107 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          mother
+# Required-Start:    $remote_fs
+# Required-Stop:     $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      1
+# Short-Description: Mother web framework
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+rundir=/var/run/
+pidfile=$rundir/mother.pid 
+logfile=/var/log/mother/mother.log
+application=/usr/bin/mother
+twistd=/usr/bin/twistd
+user=nobody
+group=nogroup
+
+. /lib/lsb/init-functions
+
+[ -r /etc/default/mother ] && . /etc/default/mother
+
+test -x $twistd || exit 0
+test -r $application || exit 0
+
+# return true if at least one pid is alive
+alive()
+{
+		if [ -z "$*" ]; then
+			return 1
+		fi
+		for i in $*; do
+			if kill -0 $i 2> /dev/null; then
+				return 0
+			fi
+		done
+
+		return 1
+}
+
+
+case "$1" in
+	start)
+		log_daemon_msg "Starting mother"
+
+		[ ! -d $rundir ] && mkdir $rundir
+		[ ! -f $logfile ] && touch $logfile
+
+		chown $user $rundir $logfile 
+		[ -f $pidfile ] && chown $user $pidfile
+
+		umask 022
+		start-stop-daemon --start --quiet --exec $twistd -- \
+			--pidfile=$pidfile 	--rundir=$rundir --python=$application \
+			--logfile=$logfile 	--no_save
+		log_end_msg $?
+		;;
+
+	stop)
+		log_daemon_msg "Stopping mother"
+		start-stop-daemon --stop --quiet --pidfile $pidfile
+
+		#
+		# Continue stopping until daemon finished or time over
+		#
+		count=0
+		pid=$(cat $pidfile 2>/dev/null)
+		while alive $pid; do
+			if [ $count -gt 20 ]; then
+				log_progress_msg " aborted"
+				break;
+			elif [ $count = 1 ]; then
+				log_progress_msg " [wait $count"
+			elif [ $count -gt 1 ]; then
+				log_progress_msg " $count"
+			fi
+
+			count=$(expr $count + 1)
+			sleep 1
+			start-stop-daemon --stop --quiet --pidfile $pidfile
+		done
+
+		if [ $count -gt 1 ]; then
+			log_progress_msg "]"
+		fi
+		log_end_msg $?
+		;;
+
+	restart)
+		$0 stop
+		$0 start
+		;;
+    
+	force-reload)
+		$0 restart
+		;;
+
+	*)
+		log_success_msg "Usage: /etc/init.d/mother {start|stop|restart|force-reload}"
+		exit 1
+		;;
+esac
+
+exit 0
+
