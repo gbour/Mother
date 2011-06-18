@@ -22,6 +22,8 @@ import os, os.path
 from distutils.core                 import setup
 from distutils.command.install_lib  import install_lib
 from distutils.dist                 import Distribution
+from distutils.dir_util             import ensure_relative
+#from setuptools import setup, Command
 
 class _Distribution(Distribution):
 	def __init__(self, *args, **kwargs):
@@ -42,14 +44,19 @@ class _install_lib(install_lib):
 
 	def run(self):
 		install_lib.run(self)
+		print 'install::run'
+		inst_cmd  = self.get_finalized_command('install')
 
 		if self.dry_run or len(self.distribution.motherapps) == 0:
 			return
 
+		inst = self.get_finalized_command('install')
+		root = inst.install_base if inst.root is None else inst.root
+
 		for app in self.distribution.motherapps:
 			self._copy_tree(
 				os.path.join(*app.split('.')), 
-				os.path.join(self.get_finalized_command('bdist_dumb').bdist_dir, self.dest)
+				os.path.join(root, self.dest)
 			)
 
 		self.byte_compile(self._pyfiles)
@@ -135,8 +142,9 @@ setup(
 	package_dir = {'': 'lib'},
 	packages    = ['mother'],
 	data_files  = [
-		('/etc', ['etc/mother.cfg']),
-		('share/doc/mother', ['doc/mother.cfg.sample'])
+		('etc', ['etc/mother.cfg']),
+		('share/doc/python-mother', ['doc/mother.cfg.sample']),
+		('etc/init.d', ['etc/init.d/mother']),
 	],
 	requires    = [
 		'TwistedCore (>=10.1)', 'TwistedWeb (>= 10.1)', 'SimpleParse (>= 2.1.0)', 'Mako (>= 0.4.0)',

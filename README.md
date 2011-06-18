@@ -22,8 +22,8 @@ or
 Introduction - ReSTful API
 --------------------------
 
-Mother expose apps. Each *app* is a python module made of functions and classes. a
-function/class/method can be request by users if only decorated with @callback (or inheriting
+Mother expose apps. Each *app* is a python module with functions and classes. a
+function/class/method can be requested by users if only decorated with @callback (or inheriting 
 Callable for classes).
 Default mime-type/data format is JSON.
 
