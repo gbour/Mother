@@ -17,17 +17,37 @@ __license__ = """
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+# HOW TO USE IT
+#	  1) install your application
+#      $> mother --apps-add=/var/lib/mother/apps/sample
+#         INFO:mother:Initializing mother
+#         . App «sample» added. Please restart mother daemon
+#
+#      NOTE: sample mother app path may be different depending on the way you
+#      install mother
+#
+#   2) you can check *sample* is correctly installed with following command:
+#      $> mother --apps-list
+#         INFO:mother:Initializing mother
+#         Plugins:
+#       	 .       sample [active=1, path=/tmp/pytests/var/lib/mother/apps]
+#
+#   3) run mother daemon
+#      $> mother
+#
+#   4) open your browser to the default url of this application:
+#      http://localhost:8080/sample
+#
+#      NOTE: adapt server ip/port to your configuration
+
+
 # UUID is per-app specific (must be unique through all apps loaded in mother)
 # you can generate your UUID using
 UUID = '7c772000-8f12-4594-9730-9e4de53d55d1'
 
-from mother.template import Static
 from mother          import routing
 from mother.callable import callback, Callable
-
-#from sample          import *
-#from plop            import Plop
-
+from mother.template import Static, Template
 
 # ** Exposing your 1st function **
 
@@ -111,19 +131,63 @@ def bar(age, **args):
 	return 'the captain is %d years old' % age
 
 
-#
+# ** Use a class as callback **
 
-#
-class Sample(Callable):
+# If your class inherit from Callable, it will be accessible from outside
+# the resulting url is composed of app name and class name (lowercased), eg '/sample/captain'
+class Captain(Callable):
+	def __init__(self, **kwargs):
+		super(Captain, self).__init__(**kwargs)
+		self._age = 54
+
+	# special methods GET, POST, PUT, DELETE are directly mapped to '/sample/captain' url
 	def GET(self, **kwargs):
-		return 'Sample::GET'
+		return 'Captain::GET'
 
-URLS = {	
+	# You can also expose non-special class/instance methods with the callback modified
+	# Here we learn a new @callback option, named 'method'
+	#
+	@callback
+	def age(self, **kwargs):
+		return self._age
+
+	# Here we discover a new @callback argument, named 'method'
+	# taking either a string among 'GET', 'POST','PUT','DELETE' or a list of these
+	#
+	# This argument set HTTP method(s) callback is accessible through (default is GET)
+	@callback(url='/setage', method='POST')
+	def age_post(self, age, **kwargs):
+		try:
+			self._age = int(age)
+		except:
+			return routing.HTTP_404('age MUST be integer')
+
+		return routing.HTTP_200('')
+
+# ** URLS dictionary **
+
+# the URLS dict is another way to set your functions/classes callable
+@callback
+def hello(**kwargs):
+	return 'hello'
+
+URLS = {
+	# expose function
+	'/hel-lo'							: hello,
+	# expose static content (directory)
+	'/static'             : Static('static-content/'),
+	# expose template file
+	# NOTES
+	#   . template files MUST be stored in a templates/ sub-directory
+	#   . Mako is the only available template engine at present
+	'/template'						: Template('sample.html', title='template sample title',
+																	content="""You\'re viewing a template sample
+																	page, rendered with <em>Mako</em>""")
 
 	#	'/'                     : Plop.root,
 	#	'/bar2'                 : Sample.foo2,
 #	'/plip/{arg1}'          : Plop.plip,
 #	'/plup/(?P<arg1>[^/]+)' : Plop.plup,
 
-	r'/static/?.*'          : Static('static/')
+#//r'/static/?.*'          : Static('static/')
 }
