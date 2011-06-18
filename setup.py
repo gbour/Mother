@@ -21,6 +21,7 @@ import os, os.path
 
 from distutils.core                 import setup
 from distutils.command.install_lib  import install_lib
+from distutils.command.install      import install
 from distutils.dist                 import Distribution
 from distutils.dir_util             import ensure_relative
 #from setuptools import setup, Command
@@ -33,9 +34,28 @@ class _Distribution(Distribution):
 		Distribution.__init__(self, *args, **kwargs)
 
 		# automatically install our install_lib version
+		if not 'install' in self.cmdclass:
+			self.cmdclass['install']= _install
 		if not 'install_lib' in self.cmdclass:
 			self.cmdclass['install_lib']= _install_lib
 
+
+class _install(install):
+	def run(self):
+
+		self.install_apps = self.install_base
+		# manage --prefix option (i.e is set when in an environment created with *virtualenv*)
+		if self.prefix_option is None and self.install_base == '/usr': # default prefix
+			# TODO: specific install paths may not be changes if explicitly specified by user on command line (--install-scripts and --install-data options)
+			(self.install_scripts, self.install_data, self.install_apps) = ('/usr/bin', '/', '/')
+
+		# manage --root option (is set when doing "setup.py bdist")
+		if self.root is not None:
+			for p in ('scripts','data','apps'):
+				setattr(self, 'install_'+p, os.path.join(self.root, ensure_relative(getattr(self, 'install_'+p))))
+
+		install.run(self)
+		
 
 class _install_lib(install_lib):
 	excludes = ['.svn']
@@ -44,19 +64,15 @@ class _install_lib(install_lib):
 
 	def run(self):
 		install_lib.run(self)
-		print 'install::run'
-		inst_cmd  = self.get_finalized_command('install')
 
 		if self.dry_run or len(self.distribution.motherapps) == 0:
 			return
 
 		inst = self.get_finalized_command('install')
-		root = inst.install_base if inst.root is None else inst.root
-
 		for app in self.distribution.motherapps:
 			self._copy_tree(
 				os.path.join(*app.split('.')), 
-				os.path.join(root, self.dest)
+				os.path.join(inst.install_apps, self.dest)
 			)
 
 		self.byte_compile(self._pyfiles)
@@ -143,12 +159,12 @@ setup(
 	packages    = ['mother'],
 	data_files  = [
 		('etc', ['etc/mother.cfg']),
-		('share/doc/python-mother', ['doc/mother.cfg.sample']),
+		('usr/share/doc/python-mother', ['doc/mother.cfg.sample']),
 		('etc/init.d', ['etc/init.d/mother']),
 	],
 	requires    = [
 		'TwistedCore (>=10.1)', 'TwistedWeb (>= 10.1)', 'SimpleParse (>= 2.1.0)', 'Mako (>= 0.4.0)',
-		'odict', 'tentacles'
+		'odict', 'tentacles' #python-cjson
 	],
 
 	distclass   = _Distribution,
