@@ -19,12 +19,15 @@ __license__ = """
 """
 import os, os.path
 
-from distutils.core                 import setup
-from distutils.command.install_lib  import install_lib
-from distutils.command.install      import install
-from distutils.dist                 import Distribution
+#from distutils.core                 import setup
+#from distutils.command.install_lib  import install_lib
+#from distutils.command.install      import install
+#from distutils.dist                 import Distribution
 from distutils.dir_util             import ensure_relative
-#from setuptools import setup, Command
+from setuptools import setup, Command
+from setuptools.command.install_lib  import install_lib
+from setuptools.command.install      import install
+from setuptools.dist                 import Distribution
 
 class _Distribution(Distribution):
 	def __init__(self, *args, **kwargs):
@@ -41,7 +44,8 @@ class _Distribution(Distribution):
 
 
 class _install(install):
-	def run(self):
+	def finalize_options(self):
+		install.finalize_options(self)
 
 		self.install_apps = self.install_base
 		# manage --prefix option (i.e is set when in an environment created with *virtualenv*)
@@ -53,8 +57,6 @@ class _install(install):
 		if self.root is not None:
 			for p in ('scripts','data','apps'):
 				setattr(self, 'install_'+p, os.path.join(self.root, ensure_relative(getattr(self, 'install_'+p))))
-
-		install.run(self)
 		
 
 class _install_lib(install_lib):
@@ -69,6 +71,7 @@ class _install_lib(install_lib):
 			return
 
 		inst = self.get_finalized_command('install')
+
 		for app in self.distribution.motherapps:
 			self._copy_tree(
 				os.path.join(*app.split('.')), 
@@ -151,7 +154,7 @@ setup(
 		. manage acls
 		. http/https
 		. authentication framework
-		. plugins (a app can be hooked):
+		. plugins (a app can be hooked)
 	""",
 
 	scripts     = ['bin/mother'],
@@ -164,7 +167,7 @@ setup(
 	],
 	requires    = [
 		'TwistedCore (>=10.1)', 'TwistedWeb (>= 10.1)', 'SimpleParse (>= 2.1.0)', 'Mako (>= 0.4.0)',
-		'odict', 'tentacles' #python-cjson
+		'python_cjson', 'odict', 'tentacles'
 	],
 
 	distclass   = _Distribution,
