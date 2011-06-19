@@ -44,9 +44,7 @@ class _Distribution(Distribution):
 
 
 class _install(install):
-	def finalize_options(self):
-		install.finalize_options(self)
-
+	def _fix_paths(self):
 		self.install_apps = self.install_base
 		# manage --prefix option (i.e is set when in an environment created with *virtualenv*)
 		if self.prefix_option is None and self.install_base == '/usr': # default prefix
@@ -58,6 +56,14 @@ class _install(install):
 			for p in ('scripts','data','apps'):
 				setattr(self, 'install_'+p, os.path.join(self.root, ensure_relative(getattr(self, 'install_'+p))))
 		
+	def finalize_options(self):
+		install.finalize_options(self)
+		self._fix_paths()
+
+	def run(self):
+		self._fix_paths()
+		install.run(self)
+
 
 class _install_lib(install_lib):
 	excludes = ['.svn']
